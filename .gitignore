@@ -1,3 +1,6 @@
+# ===== custom =====
+settings.json
+# ===== C =====
 # Prerequisites
 *.d
 

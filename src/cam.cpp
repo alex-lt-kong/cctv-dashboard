@@ -14,82 +14,111 @@
 #include <iostream>
 #include <semaphore.h>
 #include <signal.h>
-#include <getopt.h>
+#include <syslog.h>
 
-#include "common.h"
-
-
-#define IMAGES_PATH_SIZE 5432
+#include "utils.h"
 
 using namespace std;
 using namespace cv;
 
 volatile int done = 0;
-void* shmptr;
 
-void* thread_capture_live_image(const char* device_uri) {
-  printf("thread_capture_live_image() started.\n");
+void* thread_capture_live_image(void* payload) {
+  struct CamPayload* pl = (struct CamPayload*)payload;
+  syslog(
+    LOG_INFO, "thread%d | thread_capture_live_image() started. device_uri: %s, shm_name: %s, sem_name: %s",
+    pl->tid, pl->device_uri, pl->shm_name, pl->sem_name
+  );
+  
   Mat frame;
   bool result = false;
   VideoCapture cap;
 
   std::vector<uint8_t> buf = {};
   std::vector<int> s = {};
-  const uint16_t interval = 10;
+  const uint16_t interval = 30;
   uint32_t iter = interval;
-  sem_t* semptr = sem_open(SEM_NAME, O_CREAT, PERMS, SEM_INITIAL_VALUE);
-  if (semptr == (void*) -1) done = 1;
+
+  int fd = shm_open(pl->shm_name, O_CREAT | O_RDWR, PERMS);
+  if (fd < 0) {
+    syslog(LOG_ERR, "thread%d | shm_open(): %s. This thread will exit now.", pl->tid, strerror(errno));
+    return NULL;
+  }
+  ftruncate(fd, SHM_SIZE);
+  void* shmptr = mmap(NULL, SHM_SIZE, PROT_READ | PROT_WRITE, MAP_SHARED, fd, 0);
+  if ((void*) -1  == shmptr) {
+    syslog(LOG_ERR, "thread%d | mmap(): %s. This thread will exit now.", pl->tid, strerror(errno));
+    close(fd);
+    shm_unlink(pl->shm_name);
+    return NULL;
+  }
+  syslog(LOG_INFO, "shared memory created, address: %p [0..%d]\n", shmptr, SHM_SIZE - 1);
+
+  sem_t* semptr = sem_open(pl->sem_name, O_CREAT, PERMS, SEM_INITIAL_VALUE);
+  if (semptr == (void*) -1) {
+    syslog(LOG_ERR, "thread%d | sem_open(): %s. This thread will exit now.", pl->tid, strerror(errno));
+    munmap(shmptr, SHM_SIZE);  
+    close(fd);
+    shm_unlink(pl->shm_name);
+    return NULL;
+  }
+  const int sleep_sec = 5;
   while (!done) {
     
     if (cap.isOpened() == false || result == false) {
-      printf("cap.open(%s)'ing...\n", device_uri);
-      result = cap.open(device_uri);
-      cap.set(CAP_PROP_FOURCC, VideoWriter::fourcc('M', 'J', 'P', 'G')); 
-      cap.set(CAP_PROP_FRAME_WIDTH, 640);
-      cap.set(CAP_PROP_FRAME_HEIGHT, 360);
+      syslog(LOG_INFO, "thread%d | cap.open(%s)'ing...", pl->tid, pl->device_uri);
+      result = cap.open(pl->device_uri);
+      cap.set(CAP_PROP_FOURCC, VideoWriter::fourcc('M', 'J', 'P', 'G'));
       if (cap.isOpened()) {
-        printf("cap.open(%s)'ed\n", device_uri);
+        syslog(LOG_INFO, "thread%d | cap.open(%s)'ed", pl->tid, pl->device_uri);
       }
     }
     if (!result) {
-      fprintf(stderr, "cap.open(%s) failed\n", device_uri);
-      sleep(1);
+      syslog(
+        LOG_ERR, "thread%d | cap.open(%s) failed, will re-try after sleep(%d)", pl->tid, pl->device_uri, sleep_sec
+      );
+      sleep(sleep_sec);
       continue;
     }    
     result = cap.read(frame);
     if (!result) {
-      fprintf(stderr, "cap.read() failed\n");
-      sleep(1);
+      syslog(LOG_ERR, "thread%d | cap.read() failed, will re-try after sleep(%d)", pl->tid, sleep_sec);
+      sleep(sleep_sec);
       continue;
     }
     ++iter;
     if (iter < interval) { continue; }
     
     iter = 0;
-    //imwrite("/tmp/test.jpg", frame, s);
     imencode(".jpg", frame, buf, s);
     size_t sz = buf.size();
+    if (sz > SHM_SIZE - 4) {
+      syslog(LOG_ERR, "thread%d | buf.size() == %lu > SHM_SIZE == %d, skipped this memcpy()...\n", pl->tid, sz, SHM_SIZE);
+      continue;
+    }
     if (sem_wait(semptr) < 0) {
-      perror("sem_wait()");
+      syslog(LOG_ERR, "thread%d | sem_wait(): %s. This thread will exit now.", pl->tid, strerror(errno));
       break;
     }
     memcpy(shmptr, &sz, 4);
     memcpy(shmptr + 4, &(buf[0]), buf.size());
     if (sem_post(semptr) < 0) {
-      perror("sem_post()");
+      syslog(LOG_ERR, "thread%d | sem_post(): %s. This thread will exit now.", pl->tid, strerror(errno));
       break;
     }
-    printf("memcpy()'ed, buf.size(): %lu\n", sz);
   }
   cap.release();
   sem_close(semptr);
-  unlink(SEM_NAME);
-  printf("thread_capture_live_image() quits gracefully\n");
+  sem_unlink(pl->sem_name);
+  munmap(shmptr, SHM_SIZE);  
+  close(fd);
+  shm_unlink(pl->shm_name);
+  syslog(LOG_INFO, "thread%d | thread_capture_live_image() exiting", pl->tid);
   return NULL;
 }
 
 static void signal_handler(int sig_num) {
-  printf("Signal %d recieved\n", sig_num);
+  syslog(LOG_INFO, "main    | Signal %d received\n", sig_num);
   done = 1;  
 }
 
@@ -103,47 +132,34 @@ void initialize_sig_handler() {
   sigaction(SIGTERM, &act, 0);
 }
 
-void report_and_exit(const char* msg) {
-  perror(msg);
-  signal_handler(-1);
-}
-
-void print_usage() {
-    printf("Usage: cam.out --device-uri [URI]\n");
-}
-
-
 int main(int argc, char *argv[]) {
-  static struct option long_options[] = {
-    {"device-path",    required_argument, 0,  'd' },
-  };
-  char device_uri[PATH_MAX] = {0};
-  int opt= 0;
-  int long_index = 0;
-  while ((opt = getopt_long(argc, argv,"d:", long_options, &long_index )) != -1) {
-    switch (opt) {
-      case 'd' : strncpy(device_uri, optarg, strnlen(optarg, PATH_MAX - 1));
-        break;
-      default: print_usage(); 
-        exit(EXIT_FAILURE);
+  openlog("cam.odcs", LOG_PID | LOG_CONS, 0);
+  initialize_sig_handler();
+  initialize_paths(argv[0]);
+  json_object* root = json_object_from_file(settings_path);
+  json_object* root_app = json_object_object_get(root, "app");
+  json_object* videos_devices = json_object_object_get(root_app, "video_devices"); 
+  size_t videos_devices_len = json_object_array_length(videos_devices);
+  syslog(LOG_INFO, "main    | a total of %lu device(s) are defined in settings.json", videos_devices_len);
+  struct CamPayload cpls[videos_devices_len];
+  pthread_t tids[videos_devices_len];
+  for (size_t i = 0; i < videos_devices_len; ++i){
+    json_object* video_device = json_object_array_get_idx(videos_devices, i);
+    snprintf(cpls[i].device_uri, PATH_MAX, "%s", json_object_get_string(video_device));    
+    snprintf(cpls[i].sem_name, 32, "/odcs.sem%lu", i);
+    snprintf(cpls[i].shm_name, 32, "/odcs.shm%lu", i);
+    cpls[i].tid = i;
+    if (pthread_create(&(tids[i]), NULL, thread_capture_live_image, &(cpls[i])) != 0) {
+      done = 1;
+      syslog(LOG_ERR, "Failed to create pthread_create(thread_capture_live_image), program will quit gracefully.");
     }
   }
-  if (strnlen(device_uri, PATH_MAX) == 0) {
-      print_usage();
-      exit(EXIT_FAILURE);
+  for (size_t i = 0; i < videos_devices_len; ++i) {
+    pthread_join(tids[i], NULL);
+    syslog(LOG_INFO, "main    | thread %d exited gracefully", i);
   }
-  printf("[%s]\n", device_uri);
-  initialize_sig_handler();
-  int fd = shm_open(SHM_NAME, O_RDWR | O_CREAT, PERMS);
-  if (fd < 0) report_and_exit("shm_open()");
-  ftruncate(fd, SHM_SIZE);
-  shmptr = mmap(NULL, SHM_SIZE, PROT_READ | PROT_WRITE, MAP_SHARED, fd, 0);
-  if ((void*) -1  == shmptr) report_and_exit("mmap()");
-  printf("shared memory created, address: %p [0..%d]\n", shmptr, SHM_SIZE - 1);
-  thread_capture_live_image(device_uri);
-  
-  munmap(shmptr, SHM_SIZE);
-  close(fd);
-
+  json_object_put(root);
+  free_paths();
+  closelog();
   return 0;
 }
