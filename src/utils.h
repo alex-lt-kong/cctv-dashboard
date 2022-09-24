@@ -16,10 +16,12 @@ extern "C"
 #include <stdio.h>
 #include <errno.h>
 #include <stdint.h>
+#include <signal.h>
 #include <pthread.h>
 #include <limits.h>         // PATH_MAX
 #include <json-c/json.h>    // JSON
 #include <libgen.h>         // dirname()
+#include <syslog.h>         // syslog()
 
 #define SEM_INITIAL_VALUE 1
 
@@ -31,9 +33,10 @@ extern "C"
 #define MSG_BUF_SIZE 4096
 
 extern char* settings_path;
+extern char* public_dir;
 
 struct CamPayload {
-  char device_uri[PATH_MAX];
+  const char* device_uri;
   char sem_name[32];
   char shm_name[32];
   int tid;

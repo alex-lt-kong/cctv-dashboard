@@ -13,8 +13,6 @@
 #include <libgen.h>
 #include <iostream>
 #include <semaphore.h>
-#include <signal.h>
-#include <syslog.h>
 
 #include "utils.h"
 
@@ -26,7 +24,7 @@ volatile int done = 0;
 void* thread_capture_live_image(void* payload) {
   struct CamPayload* pl = (struct CamPayload*)payload;
   syslog(
-    LOG_INFO, "thread%d | thread_capture_live_image() started. device_uri: %s, shm_name: %s, sem_name: %s",
+    LOG_INFO, "thread%2d | thread_capture_live_image() started. device_uri: %s, shm_name: %s, sem_name: %s",
     pl->tid, pl->device_uri, pl->shm_name, pl->sem_name
   );
   
@@ -41,22 +39,22 @@ void* thread_capture_live_image(void* payload) {
 
   int fd = shm_open(pl->shm_name, O_CREAT | O_RDWR, PERMS);
   if (fd < 0) {
-    syslog(LOG_ERR, "thread%d | shm_open(): %s. This thread will exit now.", pl->tid, strerror(errno));
+    syslog(LOG_ERR, "thread%2d | shm_open(): %s. This thread will exit now.", pl->tid, strerror(errno));
     return NULL;
   }
   ftruncate(fd, SHM_SIZE);
   void* shmptr = mmap(NULL, SHM_SIZE, PROT_READ | PROT_WRITE, MAP_SHARED, fd, 0);
   if ((void*) -1  == shmptr) {
-    syslog(LOG_ERR, "thread%d | mmap(): %s. This thread will exit now.", pl->tid, strerror(errno));
+    syslog(LOG_ERR, "thread%2d | mmap(): %s. This thread will exit now.", pl->tid, strerror(errno));
     close(fd);
     shm_unlink(pl->shm_name);
     return NULL;
   }
-  syslog(LOG_INFO, "shared memory created, address: %p [0..%d]\n", shmptr, SHM_SIZE - 1);
+  syslog(LOG_INFO, "thread%2d | shared memory created, address: %p [0..%d]\n", pl->tid, shmptr, SHM_SIZE - 1);
 
   sem_t* semptr = sem_open(pl->sem_name, O_CREAT, PERMS, SEM_INITIAL_VALUE);
   if (semptr == (void*) -1) {
-    syslog(LOG_ERR, "thread%d | sem_open(): %s. This thread will exit now.", pl->tid, strerror(errno));
+    syslog(LOG_ERR, "thread%2d | sem_open(): %s. This thread will exit now.", pl->tid, strerror(errno));
     munmap(shmptr, SHM_SIZE);  
     close(fd);
     shm_unlink(pl->shm_name);
@@ -66,23 +64,23 @@ void* thread_capture_live_image(void* payload) {
   while (!done) {
     
     if (cap.isOpened() == false || result == false) {
-      syslog(LOG_INFO, "thread%d | cap.open(%s)'ing...", pl->tid, pl->device_uri);
+      syslog(LOG_INFO, "thread%2d | cap.open(%s)'ing...", pl->tid, pl->device_uri);
       result = cap.open(pl->device_uri);
       cap.set(CAP_PROP_FOURCC, VideoWriter::fourcc('M', 'J', 'P', 'G'));
       if (cap.isOpened()) {
-        syslog(LOG_INFO, "thread%d | cap.open(%s)'ed", pl->tid, pl->device_uri);
+        syslog(LOG_INFO, "thread%2d | cap.open(%s)'ed", pl->tid, pl->device_uri);
       }
     }
     if (!result) {
       syslog(
-        LOG_ERR, "thread%d | cap.open(%s) failed, will re-try after sleep(%d)", pl->tid, pl->device_uri, sleep_sec
+        LOG_ERR, "thread%2d | cap.open(%s) failed, will re-try after sleep(%d)", pl->tid, pl->device_uri, sleep_sec
       );
       sleep(sleep_sec);
       continue;
     }    
     result = cap.read(frame);
     if (!result) {
-      syslog(LOG_ERR, "thread%d | cap.read() failed, will re-try after sleep(%d)", pl->tid, sleep_sec);
+      syslog(LOG_ERR, "thread%2d | cap.read() failed, will re-try after sleep(%d)", pl->tid, sleep_sec);
       sleep(sleep_sec);
       continue;
     }
@@ -93,17 +91,17 @@ void* thread_capture_live_image(void* payload) {
     imencode(".jpg", frame, buf, s);
     size_t sz = buf.size();
     if (sz > SHM_SIZE - 4) {
-      syslog(LOG_ERR, "thread%d | buf.size() == %lu > SHM_SIZE == %d, skipped this memcpy()...\n", pl->tid, sz, SHM_SIZE);
+      syslog(LOG_ERR, "thread%2d | buf.size() == %lu > SHM_SIZE == %d, skipped this memcpy()...\n", pl->tid, sz, SHM_SIZE);
       continue;
     }
     if (sem_wait(semptr) < 0) {
-      syslog(LOG_ERR, "thread%d | sem_wait(): %s. This thread will exit now.", pl->tid, strerror(errno));
+      syslog(LOG_ERR, "thread%2d | sem_wait(): %s. This thread will exit now.", pl->tid, strerror(errno));
       break;
     }
     memcpy(shmptr, &sz, 4);
     memcpy(shmptr + 4, &(buf[0]), buf.size());
     if (sem_post(semptr) < 0) {
-      syslog(LOG_ERR, "thread%d | sem_post(): %s. This thread will exit now.", pl->tid, strerror(errno));
+      syslog(LOG_ERR, "thread%2d | sem_post(): %s. This thread will exit now.", pl->tid, strerror(errno));
       break;
     }
   }
@@ -113,12 +111,12 @@ void* thread_capture_live_image(void* payload) {
   munmap(shmptr, SHM_SIZE);  
   close(fd);
   shm_unlink(pl->shm_name);
-  syslog(LOG_INFO, "thread%d | thread_capture_live_image() exiting", pl->tid);
+  syslog(LOG_INFO, "thread%2d | thread_capture_live_image() exiting", pl->tid);
   return NULL;
 }
 
 static void signal_handler(int sig_num) {
-  syslog(LOG_INFO, "main    | Signal %d received\n", sig_num);
+  syslog(LOG_INFO, "main     | Signal %d received\n", sig_num);
   done = 1;  
 }
 
@@ -140,12 +138,12 @@ int main(int argc, char *argv[]) {
   json_object* root_app = json_object_object_get(root, "app");
   json_object* videos_devices = json_object_object_get(root_app, "video_devices"); 
   size_t videos_devices_len = json_object_array_length(videos_devices);
-  syslog(LOG_INFO, "main    | a total of %lu device(s) are defined in settings.json", videos_devices_len);
+  syslog(LOG_INFO, "main     | a total of %lu device(s) are defined in settings.json", videos_devices_len);
   struct CamPayload cpls[videos_devices_len];
   pthread_t tids[videos_devices_len];
   for (size_t i = 0; i < videos_devices_len; ++i){
     json_object* video_device = json_object_array_get_idx(videos_devices, i);
-    snprintf(cpls[i].device_uri, PATH_MAX, "%s", json_object_get_string(video_device));    
+    cpls[i].device_uri = json_object_get_string(video_device);
     snprintf(cpls[i].sem_name, 32, "/odcs.sem%lu", i);
     snprintf(cpls[i].shm_name, 32, "/odcs.shm%lu", i);
     cpls[i].tid = i;
@@ -156,7 +154,7 @@ int main(int argc, char *argv[]) {
   }
   for (size_t i = 0; i < videos_devices_len; ++i) {
     pthread_join(tids[i], NULL);
-    syslog(LOG_INFO, "main    | thread %d exited gracefully", i);
+    syslog(LOG_INFO, "main     | thread %lu exited gracefully", i);
   }
   json_object_put(root);
   free_paths();
