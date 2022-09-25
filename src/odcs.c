@@ -33,8 +33,9 @@ char* authenticate(onion_request *req, onion_response *res, json_object* users) 
     auth_header_val = onion_base64_decode(&auth_header[6], NULL);
     supplied_username = auth_header_val;
     int i = 0;
-    while (auth_header_val[i] != '\0' && auth_header_val[i] != ':' && i < MSG_BUF_SIZE + 1) { i++; }    
-    if (auth_header_val[i] == ':' && i < MSG_BUF_SIZE) {
+    const int max_username = 32;
+    while (auth_header_val[i] != '\0' && auth_header_val[i] != ':' && i < max_username + 1) { i++; }    
+    if (auth_header_val[i] == ':' && i < max_username) {
         auth_header_val[i] = '\0'; // supplied_username is set to auth_header_val, we terminate auth to make supplied_username work
         supplied_passwd = &auth_header_val[i + 1];
     }
@@ -57,7 +58,7 @@ char* authenticate(onion_request *req, onion_response *res, json_object* users) 
   const char RESPONSE_UNAUTHORIZED[] = "<h1>Unauthorized access</h1>";
   // Not authorized. Ask for it.
   char temp[256];
-  sprintf(temp, "Basic realm=PAC");
+  sprintf(temp, "Basic realm=On-demand CCTV server");
   onion_response_set_header(res, "WWW-Authenticate", temp);
   onion_response_set_code(res, HTTP_UNAUTHORIZED);
   onion_response_set_length(res, sizeof(RESPONSE_UNAUTHORIZED));
@@ -156,6 +157,7 @@ int index_page(void *p, onion_request *req, onion_response *res) {
     ONION_WARNING("Failed login attempt");
     return OCS_PROCESSED;
   }
+  syslog(LOG_INFO, "User [%s] authenticated", authenticated_user);
   free(authenticated_user);
   char file_path[PATH_MAX] = "";
   const char* file_name = onion_request_get_query(req, "file_name");
@@ -165,8 +167,8 @@ int index_page(void *p, onion_request *req, onion_response *res) {
   }
   else if (strcmp(file_name, "odcs.js") == 0) {
     strcat(file_path, "js/odcs.js");
-  } else if (strcmp(file_name, "favicon.svg") == 0) {
-    strcat(file_path, "img/favicon.svg");
+  } else if (strcmp(file_name, "favicon.png") == 0) {
+    strcat(file_path, "img/favicon.png");
   } else {
     strcat(file_path, "html/index.html");
   }

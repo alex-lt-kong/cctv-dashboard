@@ -1,5 +1,5 @@
 SRC_DIR = ./src
-OPT = -Wall -O2
+OPT = -Wall -O3
 
 main: $(SRC_DIR)/cam.cpp $(SRC_DIR)/odcs.c utils.o
 	gcc -o odcs.out $(SRC_DIR)/odcs.c utils.o -lrt -lpthread -ljson-c -lonion $(OPT)

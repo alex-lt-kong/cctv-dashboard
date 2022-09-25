@@ -99,7 +99,7 @@ void* thread_capture_live_image(void* payload) {
       break;
     }
     memcpy(shmptr, &sz, 4);
-    memcpy(shmptr + 4, &(buf[0]), buf.size());
+    memcpy((uint8_t*)shmptr + 4, &(buf[0]), buf.size());
     if (sem_post(semptr) < 0) {
       syslog(LOG_ERR, "thread%2d | sem_post(): %s. This thread will exit now.", pl->tid, strerror(errno));
       break;

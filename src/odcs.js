@@ -8,7 +8,7 @@ import Toolbar from '@mui/material/Toolbar';
 import Typography from '@mui/material/Typography';
 import Card from '@mui/material/Card';
 import Button from '@mui/material/Button';
-import GasMeterIcon from '@mui/icons-material/GasMeter';
+import DvrIcon from '@mui/icons-material/Dvr';
 import ImageList from '@mui/material/ImageList';
 import ImageListItem from '@mui/material/ImageListItem';
 import { ThemeProvider, createTheme } from '@mui/material/styles';
@@ -98,6 +98,13 @@ class LiveImages extends React.Component {
                   this.setState({randNums: newRandNums});
                 });
               }}
+              onError={()=>{
+                (new Promise((resolve) => setTimeout(resolve, 5000))).then(() => {
+                  const newRandNums = this.state.randNums;
+                  newRandNums[idx] = Math.random();
+                  this.setState({randNums: newRandNums});
+                });
+              }}
             />
           </ImageListItem>
         ))}
@@ -134,7 +141,7 @@ class NavBar extends React.Component {
       <Box sx={{flexGrow: 1, mb: '1rem'}}>
         <AppBar position="static">
           <Toolbar>
-            <GasMeterIcon sx={{display: {md: 'flex'}, mr: 1}} />
+            <DvrIcon sx={{display: {md: 'flex'}, mr: 1}} />
             <Typography
               variant="h6"
               noWrap
