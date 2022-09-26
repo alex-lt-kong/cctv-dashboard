@@ -25,7 +25,7 @@ extern "C"
 
 #define SEM_INITIAL_VALUE 1
 
-#define SHM_SIZE 8388608 // 8MB
+#define SHM_SIZE 2 * 1024 * 1024
 
 #define PERMS (S_IRUSR | S_IWUSR | S_IRGRP | S_IWGRP)
 // o:wr, g:wr, i.e., 0660

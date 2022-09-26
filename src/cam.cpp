@@ -33,7 +33,6 @@ void* thread_capture_live_image(void* payload) {
   VideoCapture cap;
 
   std::vector<uint8_t> buf = {};
-  std::vector<int> s = {};
   const uint16_t interval = 30;
   uint32_t iter = interval;
 
@@ -78,17 +77,16 @@ void* thread_capture_live_image(void* payload) {
       sleep(sleep_sec);
       continue;
     }    
-    result = cap.read(frame);
-    if (!result) {
-      syslog(LOG_ERR, "thread%2d | cap.read() failed, will re-try after sleep(%d)", pl->tid, sleep_sec);
+    if (cap.grab() == false) {
+      syslog(LOG_ERR, "thread%2d | cap.grab() failed, will re-try after sleep(%d)", pl->tid, sleep_sec);
       sleep(sleep_sec);
       continue;
     }
     ++iter;
     if (iter < interval) { continue; }
-    
+    cap.read(frame);
     iter = 0;
-    imencode(".jpg", frame, buf, s);
+    imencode(".jpg", frame, buf, {IMWRITE_JPEG_QUALITY, 80});
     size_t sz = buf.size();
     if (sz > SHM_SIZE - 4) {
       syslog(LOG_ERR, "thread%2d | buf.size() == %lu > SHM_SIZE == %d, skipped this memcpy()...\n", pl->tid, sz, SHM_SIZE);

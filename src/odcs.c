@@ -84,6 +84,7 @@ int get_device_count_json(void *p, onion_request *req, onion_response *res) {
     ONION_WARNING("Failed login attempt");
     return OCS_PROCESSED;
   }
+  syslog(LOG_INFO, "User [%s] authenticated", authenticated_user);
   char msg[MSG_BUF_SIZE];
   snprintf(msg, MSG_BUF_SIZE, "{\"status\":\"success\",\"data\":%lu}", video_devices_len);
   free(authenticated_user);
@@ -157,7 +158,6 @@ int index_page(void *p, onion_request *req, onion_response *res) {
     ONION_WARNING("Failed login attempt");
     return OCS_PROCESSED;
   }
-  syslog(LOG_INFO, "User [%s] authenticated", authenticated_user);
   free(authenticated_user);
   char file_path[PATH_MAX] = "";
   const char* file_name = onion_request_get_query(req, "file_name");

@@ -70,7 +70,7 @@ class LiveImages extends React.Component {
         values: {
           mobile: 0,
           tablet: 768,
-          desktop: 1024
+          desktop: 1366
         }
       }
     });
@@ -84,27 +84,29 @@ class LiveImages extends React.Component {
             tablet: "repeat(2, 1fr)",
             desktop: "repeat(4, 1fr)"
           }
-        }}
+        }}        
       >
         {this.state.cctvList.map((idx) => (
           <ImageListItem key={idx}>
             <img
+              style={{objectFit: "fill"}}
               src={`${this.state.cctvEndpoint}${idx}&${this.state.randNums[idx]}`}
               loading="lazy"
               onLoad={()=>{
-                (new Promise((resolve) => setTimeout(resolve, 600))).then(() => {
+                (new Promise((resolve) => setTimeout(resolve, 1000))).then(() => {
                   const newRandNums = this.state.randNums;
                   newRandNums[idx] = Math.random();
                   this.setState({randNums: newRandNums});
                 });
               }}
               onError={()=>{
-                (new Promise((resolve) => setTimeout(resolve, 5000))).then(() => {
+                (new Promise((resolve) => setTimeout(resolve, 1000))).then(() => {
                   const newRandNums = this.state.randNums;
                   newRandNums[idx] = Math.random();
                   this.setState({randNums: newRandNums});
                 });
               }}
+              
             />
           </ImageListItem>
         ))}
@@ -181,7 +183,7 @@ class Index extends React.Component {
     return (
       <>
         <NavBar />
-        <div style={{maxWidth: '1440px', display: 'block', marginLeft: 'auto', marginRight: 'auto'}}>
+        <div style={{maxWidth: '1600px', display: 'block', marginLeft: 'auto', marginRight: 'auto'}}>
           <LiveImages />          
         </div>
       </>
