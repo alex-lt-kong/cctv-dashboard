@@ -33,8 +33,10 @@ void* thread_capture_live_image(void* payload) {
   VideoCapture cap;
 
   std::vector<uint8_t> buf = {};
+  std::vector<int> configs = {IMWRITE_JPEG_QUALITY, 80};
   const uint16_t interval = 30;
   uint32_t iter = interval;
+  size_t buf_size;
 
   int fd = shm_open(pl->shm_name, O_CREAT | O_RDWR, PERMS);
   if (fd < 0) {
@@ -70,34 +72,40 @@ void* thread_capture_live_image(void* payload) {
         syslog(LOG_INFO, "thread%2d | cap.open(%s)'ed", pl->tid, pl->device_uri);
       }
     }
-    if (!result) {
+    if (result == false) {
       syslog(
         LOG_ERR, "thread%2d | cap.open(%s) failed, will re-try after sleep(%d)", pl->tid, pl->device_uri, sleep_sec
       );
       sleep(sleep_sec);
-      continue;
-    }    
-    if (cap.grab() == false) {
-      syslog(LOG_ERR, "thread%2d | cap.grab() failed, will re-try after sleep(%d)", pl->tid, sleep_sec);
-      sleep(sleep_sec);
-      continue;
+    } else {
+      result = cap.grab();
+      if (result == false) {
+        syslog(LOG_ERR, "thread%2d | cap.grab() failed, will cap.release() and then re-try after sleep(%d)", pl->tid, sleep_sec);
+        cap.release();
+        sleep(sleep_sec);
+      }
     }
     ++iter;
     if (iter < interval) { continue; }
-    cap.read(frame);
+    if (result) {
+      result = cap.read(frame);
+    }
+    if (result == false) {
+      frame = Mat(540, 960, CV_8UC3, Scalar(128, 128, 128));
+    }
     iter = 0;
-    imencode(".jpg", frame, buf, {IMWRITE_JPEG_QUALITY, 80});
-    size_t sz = buf.size();
-    if (sz > SHM_SIZE - 4) {
-      syslog(LOG_ERR, "thread%2d | buf.size() == %lu > SHM_SIZE == %d, skipped this memcpy()...\n", pl->tid, sz, SHM_SIZE);
+    imencode(".jpg", frame, buf, configs);
+     buf_size= buf.size();
+    if (buf_size > SHM_SIZE - 4) {
+      syslog(LOG_ERR, "thread%2d | buf.size() == %lu > SHM_SIZE == %d, skipped this memcpy()...\n", pl->tid, buf_size, SHM_SIZE);
       continue;
     }
     if (sem_wait(semptr) < 0) {
       syslog(LOG_ERR, "thread%2d | sem_wait(): %s. This thread will exit now.", pl->tid, strerror(errno));
       break;
     }
-    memcpy(shmptr, &sz, 4);
-    memcpy((uint8_t*)shmptr + 4, &(buf[0]), buf.size());
+    memcpy(shmptr, &buf_size, 4);
+    memcpy((uint8_t*)shmptr + 4, &(buf[0]), buf_size);
     if (sem_post(semptr) < 0) {
       syslog(LOG_ERR, "thread%2d | sem_post(): %s. This thread will exit now.", pl->tid, strerror(errno));
       break;
@@ -129,7 +137,7 @@ void initialize_sig_handler() {
 }
 
 int main(int argc, char *argv[]) {
-  openlog("cam.odcs", LOG_PID | LOG_CONS, 0);
+  openlog("odcs", LOG_PID | LOG_CONS, 0);
   initialize_sig_handler();
   initialize_paths(argv[0]);
   json_object* root = json_object_from_file(settings_path);

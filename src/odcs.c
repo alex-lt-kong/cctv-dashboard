@@ -176,7 +176,7 @@ int index_page(void *p, onion_request *req, onion_response *res) {
 }
 
 int main(int argc, char **argv) {
-  openlog("srv.odcs", LOG_PID | LOG_CONS, 0);
+  openlog("odcs", LOG_PID | LOG_CONS, 0);
   initialize_paths(argv[0]);
 
   json_object* root = json_object_from_file(settings_path);
@@ -208,7 +208,7 @@ int main(int argc, char **argv) {
   onion_url_add(urls, "cctv/", cctv);
   onion_url_add(urls, "", index_page);
   syslog(
-    LOG_INFO, "Valve controller listening on %s:%s",
+    LOG_INFO, "On-demand CCTV server listening on %s:%s",
     json_object_get_string(root_app_interface), json_object_get_string(root_app_port)
   );
 

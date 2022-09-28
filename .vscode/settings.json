@@ -3,6 +3,11 @@
     "version.h": "c",
     "libgen.h": "c",
     "sstream": "cpp",
-    "response.h": "c"
+    "response.h": "c",
+    "array": "cpp",
+    "string_view": "cpp",
+    "initializer_list": "cpp",
+    "ranges": "cpp",
+    "utility": "cpp"
   }
 }

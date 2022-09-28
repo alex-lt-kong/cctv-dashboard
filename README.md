@@ -19,4 +19,3 @@ The project is used in the following scenario:
 * JSON support: `apt install libjson-c-dev`.
 * Video device manipulation support: `apt-get install ffmpeg`
 * Image manipulation: `apt-get install libopencv-dev`
-
