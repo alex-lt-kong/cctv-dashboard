@@ -69,7 +69,7 @@ char* authenticate(onion_request *req, onion_response *res, json_object* users) 
 int get_logged_in_user_json(void *p, onion_request *req, onion_response *res) {
   char* authenticated_user = authenticate(req, res, root_users);
   if (authenticated_user == NULL) {
-    ONION_WARNING("Failed login attempt");
+    syslog(LOG_ERR, "Failed login attempt");
     return OCS_PROCESSED;
   }
   char msg[MSG_BUF_SIZE];
@@ -81,7 +81,7 @@ int get_logged_in_user_json(void *p, onion_request *req, onion_response *res) {
 int get_device_count_json(void *p, onion_request *req, onion_response *res) {
   char* authenticated_user = authenticate(req, res, root_users);
   if (authenticated_user == NULL) {
-    ONION_WARNING("Failed login attempt");
+    syslog(LOG_ERR, "Failed login attempt");
     return OCS_PROCESSED;
   }
   syslog(LOG_INFO, "User [%s] authenticated", authenticated_user);
@@ -95,7 +95,7 @@ int cctv(void *p, onion_request *req, onion_response *res) {
 
   char* authenticated_user = authenticate(req, res, root_users);
   if (authenticated_user == NULL) {
-    ONION_WARNING("Failed login attempt");
+    syslog(LOG_ERR, "Failed login attempt");
     return OCS_PROCESSED;
   }
   free(authenticated_user);

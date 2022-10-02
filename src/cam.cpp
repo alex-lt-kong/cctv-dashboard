@@ -1,7 +1,6 @@
 #include <opencv2/core/core.hpp>
 #include <opencv2/highgui/highgui.hpp>
 #include <opencv2/imgproc/imgproc.hpp>
-#include <opencv2/imgcodecs.hpp>
 #include <stdio.h>
 #include <stdlib.h>
 #include <sys/mman.h>
@@ -32,11 +31,11 @@ void* thread_capture_live_image(void* payload) {
   bool result = false;
   VideoCapture cap;
 
-  std::vector<uint8_t> buf = {};
+  std::vector<uint8_t> encoded_img = {};
   std::vector<int> configs = {IMWRITE_JPEG_QUALITY, 80};
   const uint16_t interval = 30;
   uint32_t iter = interval;
-  size_t buf_size;
+  size_t img_size;
 
   int fd = shm_open(pl->shm_name, O_CREAT | O_RDWR, PERMS);
   if (fd < 0) {
@@ -66,46 +65,49 @@ void* thread_capture_live_image(void* payload) {
     
     if (cap.isOpened() == false || result == false) {
       syslog(LOG_INFO, "thread%2d | cap.open(%s)'ing...", pl->tid, pl->device_uri);
+      cap.release();
       result = cap.open(pl->device_uri);
-      cap.set(CAP_PROP_FOURCC, VideoWriter::fourcc('M', 'J', 'P', 'G'));
-      if (cap.isOpened()) {
+      //cap.set(CV_CAP_PROP_FOURCC, CV_FOURCC('H', '2', '6', '4'));
+      if (cap.isOpened() && result) {
         syslog(LOG_INFO, "thread%2d | cap.open(%s)'ed", pl->tid, pl->device_uri);
+      } else {
+        syslog(LOG_ERR, "thread%2d | cap.open(%s) failed", pl->tid, pl->device_uri);
+        result = false;
+        // canNOT have continue here--we need to fill the screen with gray color
       }
-    }
-    if (result == false) {
-      syslog(
-        LOG_ERR, "thread%2d | cap.open(%s) failed, will re-try after sleep(%d)", pl->tid, pl->device_uri, sleep_sec
-      );
-      sleep(sleep_sec);
-    } else {
-      result = cap.grab();
-      if (result == false) {
-        syslog(LOG_ERR, "thread%2d | cap.grab() failed, will cap.release() and then re-try after sleep(%d)", pl->tid, sleep_sec);
-        cap.release();
-        sleep(sleep_sec);
-      }
-    }
-    ++iter;
-    if (iter < interval) { continue; }
+    }    
     if (result) {
       result = cap.read(frame);
     }
     if (result == false) {
+      syslog(
+        LOG_ERR, "thread%2d | cap.grab() failed, will cap.release() and then re-try after sleep(%d)", pl->tid, sleep_sec
+      );
+      cap.release();
+      sleep(sleep_sec);
+    }
+    ++iter;
+    if (iter < interval) { continue; }
+
+    if (result == false || frame.empty()) {
       frame = Mat(540, 960, CV_8UC3, Scalar(128, 128, 128));
     }
     iter = 0;
-    imencode(".jpg", frame, buf, configs);
-     buf_size= buf.size();
-    if (buf_size > SHM_SIZE - 4) {
-      syslog(LOG_ERR, "thread%2d | buf.size() == %lu > SHM_SIZE == %d, skipped this memcpy()...\n", pl->tid, buf_size, SHM_SIZE);
+    imencode(".jpg", frame, encoded_img, configs);
+    img_size = encoded_img.size();
+    if (img_size > SHM_SIZE - 4) {
+      syslog(
+        LOG_ERR, "thread%2d | encoded_img.size() == %lu > SHM_SIZE == %d, skipped memcpy()...\n",
+        pl->tid, img_size, SHM_SIZE
+      );
       continue;
     }
     if (sem_wait(semptr) < 0) {
       syslog(LOG_ERR, "thread%2d | sem_wait(): %s. This thread will exit now.", pl->tid, strerror(errno));
       break;
     }
-    memcpy(shmptr, &buf_size, 4);
-    memcpy((uint8_t*)shmptr + 4, &(buf[0]), buf_size);
+    memcpy(shmptr, &img_size, 4);
+    memcpy((uint8_t*)shmptr + 4, &(encoded_img[0]), img_size);
     if (sem_post(semptr) < 0) {
       syslog(LOG_ERR, "thread%2d | sem_post(): %s. This thread will exit now.", pl->tid, strerror(errno));
       break;
@@ -144,6 +146,8 @@ int main(int argc, char *argv[]) {
   json_object* root_app = json_object_object_get(root, "app");
   json_object* videos_devices = json_object_object_get(root_app, "video_devices"); 
   size_t videos_devices_len = json_object_array_length(videos_devices);
+  //cout << getBuildInformation() << endl;
+  syslog(LOG_INFO, "main     | getBuildInformation():\n%s", getBuildInformation().c_str());
   syslog(LOG_INFO, "main     | a total of %lu device(s) are defined in settings.json", videos_devices_len);
   struct CamPayload cpls[videos_devices_len];
   pthread_t tids[videos_devices_len];
