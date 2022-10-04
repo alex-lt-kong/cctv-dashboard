@@ -30,6 +30,7 @@ The project is used in the following scenario:
     seanky memory leak bug when an existing RTSP connection is down and a new one is opened. This version
     appears to be bug-free.
   * `./configure`, `make -j4`, `make install`
+  * To test if an FFmpeg installation works with RTSP, try `ffmpeg -i "<RTSP URL>" -vcodec copy -r 20 -y /tmp/test.mp4`
   * If need to test more versions:
     * `make uninstall`: to remove previous `make install`'ed files.
     * `make distclean` and `make clean`: to remove cached `./configure`ed and `make`ed files.
@@ -48,3 +49,4 @@ The project is used in the following scenario:
     * `make -j4`, `make install`.
 
 `libavcodec-dev libavdevice-dev libavfilter-dev libavformat-dev`
+`rm /usr/local/lib/x86_64-linux-gnu/libav*` may not be able to be `make uninstall`ed
