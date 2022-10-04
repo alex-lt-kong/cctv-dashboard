@@ -1,13 +1,13 @@
 FFmpeg version, OpenCV version, FFmpeg build, OpenCV build, Result, Remark
-n4.1.9, 4.3.0,  ./configure, "cmake -D WITH_GSTREAMER=OFF ../", functional, leaking ~10MB per disconnection per 20 cameras
-n4.0.6, 4.2.0,  ./configure, "cmake -D WITH_GSTREAMER=OFF ../", functional, leaking ~10MB per disconnection per 20 cameras
-n3.4.9, 4.2.0,  ./configure, "cmake -D WITH_GSTREAMER=OFF ../", segmentation fault on run
-n3.4.9, 3.4.18, ./configure, "cmake -D WITH_GSTREAMER=OFF ../", segmentation fault on run
-n3.3.9, 3.4.0,  ./configure, "cmake -D WITH_GSTREAMER=OFF ../", OpenCV make error
-n3.3.9, 3.4.0,  ./configure, "cmake -D WITH_GSTREAMER=OFF -D BUILD_opencv_python3=OFF ../", segmantation fault on run
-n3.3,   3.4.0,  ./configure, "cmake -D WITH_GSTREAMER=OFF -D BUILD_opencv_python3=OFF ../", segmantation fault on run
-n3.3,   3.3.1,  ./configure, "cmake -D WITH_GSTREAMER=OFF -D BUILD_opencv_python3=OFF ../", segmantation fault on run
-n3.3,   2.4.13.7,  ./configure, "cmake -D WITH_GSTREAMER=OFF -D BUILD_opencv_python3=OFF ../", segmantation fault on run
-n2.8.19   2.4.13.7,  ./configure, "cmake -D WITH_GSTREAMER=OFF -D BUILD_opencv_python3=OFF ../", segmantation fault on run 
-n2.8.19   2.4.13.7,  "./configure", "cmake -D WITH_GSTREAMER=OFF -D BUILD_opencv_python3=OFF ../", ld error: relocation R_X86_64_PC32 against symbol `ff_pw_9' can not be used when making a shared object; recompile with -fPIC
-n2.8.19   2.4.13.7,  "./configure --enable-shared", "cmake -D WITH_GSTREAMER=OFF -D BUILD_opencv_python3=OFF ../", testing, Also executed `rm /usr/local/lib/x86_64-linux-gnu/libav*` since some FFmpeg libs are also here...
+n4.1.9, 4.3.0, "./configure", "cmake -D WITH_GSTREAMER=OFF ../", functional, leaking ~10MB per disconnection per 20 cameras
+n4.0.6, 4.2.0, "./configure", "cmake -D WITH_GSTREAMER=OFF ../", functional, leaking ~10MB per disconnection per 20 cameras
+n3.4.9, 4.2.0, "./configure", "cmake -D WITH_GSTREAMER=OFF ../", segmentation fault on run
+n3.4.9, 3.4.18, "./configure", "cmake -D WITH_GSTREAMER=OFF ../", segmentation fault on run
+n3.3.9, 3.4.0, "./configure", "cmake -D WITH_GSTREAMER=OFF ../", OpenCV make error
+n3.3.9, 3.4.0, "./configure", "cmake -D WITH_GSTREAMER=OFF -D BUILD_opencv_python3=OFF ../", segmantation fault on run
+n3.3, 3.4.0, "./configure", "cmake -D WITH_GSTREAMER=OFF -D BUILD_opencv_python3=OFF ../", segmantation fault on run
+n3.3, 3.3.1, "./configure", "cmake -D WITH_GSTREAMER=OFF -D BUILD_opencv_python3=OFF ../", segmantation fault on run
+n3.3, 2.4.13.7, "./configure", "cmake -D WITH_GSTREAMER=OFF -D BUILD_opencv_python3=OFF ../", segmantation fault on run
+n2.8.19, 2.4.13.7, "./configure", "cmake -D WITH_GSTREAMER=OFF -D BUILD_opencv_python3=OFF ../", segmantation fault on run 
+n2.8.19, 2.4.13.7,  "./configure", "cmake -D WITH_GSTREAMER=OFF -D BUILD_opencv_python3=OFF ../", ld error: relocation R_X86_64_PC32 against symbol `ff_pw_9' can not be used when making a shared object; recompile with -fPIC
+n2.8.19, 2.4.13.7,  "./configure --enable-shared", "cmake -D WITH_GSTREAMER=OFF -D BUILD_opencv_python3=OFF ../", functional, Also executed `rm /usr/local/lib/x86_64-linux-gnu/libav*` since some FFmpeg libs are also here...
