@@ -1,14 +1,10 @@
 # On-demand CCTV server
 
-The project is used in the following scenario:
-
-* Twenty IP cameras are set and are constantly streaming via the RTSP protocol.
-* Users need to watch real-time live streaming on an infrequent basis
-(no more than a few times a day and no more than a few minutes each session).
-* Users usually use average cellular mobile internet connection with usage billing
-(i.e., they don't want to be charged a lot due to this service).
-* Users are impatient, they don't want to wait for too long (5+ sec) to load all the live images.
-* Users don't care FPS too much--0.5 frame per second is considered more than enough.
+* Twenty IP cameras are set and constantly streaming via the RTSP protocol.
+* `cam.out`: a multi-thread RTSP client, reading images from IP cameras, throttling the frame rate down then writting
+images to shared memory
+* `odcs.out`: an HTTP server and shared memory reader, serving images to clients on demand.
+* `odcs.js`: the ReactJs frontend showing images to end-user
 
 <img src="./assets/system-diagram.png" />
 
