@@ -6,7 +6,7 @@ images to shared memory
 * `odcs.out`: an HTTP server and shared memory reader, serving images to clients on demand.
 * `odcs.js`: the ReactJs frontend showing images to end-user
 
-<img src="./assets/system-diagram.png" />
+<img src="./assets/system-diagram.drawio.png" />
 
 ## Dependencies
 * Library search support: `apt install pkg-config`.
