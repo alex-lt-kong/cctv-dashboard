@@ -60,7 +60,7 @@ void* thread_capture_live_image(void* payload) {
     shm_unlink(pl->shm_name);
     return NULL;
   }
-  const int sleep_sec = 5;
+  uint32_t sleep_sec = 5;
   while (!done) {
     
     if (cap.isOpened() == false || result == false) {
@@ -84,7 +84,10 @@ void* thread_capture_live_image(void* payload) {
         LOG_ERR, "thread%2d | cap.grab() failed, will cap.release() and then re-try after sleep(%d)", pl->tid, sleep_sec
       );
       cap.release();
-      sleep(sleep_sec);
+      sleep(sleep_sec++);
+      // The concern is that each retry attempt leaks some resources, so here we limit the retry frequency.
+    } else {
+      sleep_sec = 5;
     }
     ++iter;
     if (iter < interval) { continue; }

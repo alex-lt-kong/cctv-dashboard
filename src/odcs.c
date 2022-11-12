@@ -194,7 +194,7 @@ int main(int argc, char **argv) {
   root_users = json_object_object_get(root_app, "users");
   ONION_VERSION_IS_COMPATIBLE_OR_ABORT();
 
-  o=onion_new(O_THREADED);
+  o=onion_new(O_POLL|O_THREADED);
   onion_set_timeout(o, 300 * 1000);
   // We set this to a large number, hoping the client closes the connection itself
   // If the server times out before client does, GnuTLS complains "The TLS connection was non-properly terminated."
