@@ -176,7 +176,7 @@ int index_page(void *p, onion_request *req, onion_response *res) {
 }
 
 int main(int argc, char **argv) {
-  openlog("odcs", LOG_PID | LOG_CONS, 0);
+  openlog("odcs", LOG_PID | LOG_CONS, 0); // This is configured in /etc/rsyslog.d/
   initialize_paths(argv[0]);
 
   json_object* root = json_object_from_file(settings_path);
@@ -194,7 +194,7 @@ int main(int argc, char **argv) {
   root_users = json_object_object_get(root_app, "users");
   ONION_VERSION_IS_COMPATIBLE_OR_ABORT();
 
-  o=onion_new(O_POLL|O_THREADED);
+  o=onion_new(O_ONE_LOOP);
   onion_set_timeout(o, 300 * 1000);
   // We set this to a large number, hoping the client closes the connection itself
   // If the server times out before client does, GnuTLS complains "The TLS connection was non-properly terminated."
@@ -214,7 +214,7 @@ int main(int argc, char **argv) {
 
   onion_listen(o);
   syslog(LOG_INFO, "Onion server quits gracefully");
-
+  onion_free(o);
   free_paths();
   return 0;
 }

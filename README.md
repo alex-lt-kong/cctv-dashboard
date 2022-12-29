@@ -15,15 +15,15 @@ images to shared memory
     * Onion will be `make install`ed to `/usr/local/lib/`, add the directory to `$LD_LIBRARY_PATH`:
  `export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:/usr/local/lib/`
 * JSON support: `apt install libjson-c-dev`.
-* OpenCV video I/O backend, [FFmpeg](https://trac.ffmpeg.org/wiki/CompilationGuide):
+* [FFmpeg](https://trac.ffmpeg.org/wiki/CompilationGuide), as OpenCV's video I/O backend:
   * `apt-get uninstall ffmpeg`: default ffmpeg installation, if any, will probably not work.
   * `git clone https://github.com/FFmpeg/FFmpeg.git`: this is rarely a one-off thing, cloning the entire repository
     is almost always needed as we need to try a LOT of different versions.
   * Finding a compatible FFmpeg version to work with OpenCV is not easy. A lot of tests are conducted and their results
   are documented [here](./assets/ffmpeg-opencv-tests.csv)
-  * `git checkout n1.2.12`: compiled dozens of newer versions, appears that all of them suffer from the same
-    seanky memory leak bug when an existing RTSP connection is down and a new one is opened. This version
-    appears to be bug-free.
+  * `git checkout n2.8.1`: a lot of trial-and-error is done to avoid random crash and persisent memory leak when an
+  existing RTSP connection is down and a new one is opened. Check
+  [ffmpeg-opencv-tests.csv](./assets/ffmpeg-opencv-tests.csv) for details 
   * `./configure`, `make -j4`, `make install`
   * To test if an FFmpeg installation works with RTSP, try `ffmpeg -i "<RTSP URL>" -vcodec copy -r 20 -y /tmp/test.mp4`
   * If need to test more versions:
@@ -31,7 +31,7 @@ images to shared memory
     * `make distclean` and `make clean`: to remove cached `./configure`ed and `make`ed files.
     * `git clean -fd`: to remove anything not belong to the repo.
     * `git checkout <version>`.
-* Frame manipulation, [OpenCV](https://docs.opencv.org/4.6.0/d7/d9f/tutorial_linux_install.html):
+* [OpenCV](https://docs.opencv.org/4.6.0/d7/d9f/tutorial_linux_install.html) for video frame manipulation:
     * `apt-get install libopencv-dev`: does not seem to work--it suffers from a sneaky memory-leaking bug...
     * `git clone https://github.com/opencv/opencv.git`.
     * `git checkout 2.4.13.7`: compiled dozens of versions before settling down to this...

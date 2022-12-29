@@ -81,10 +81,11 @@ void* thread_capture_live_image(void* payload) {
     }
     if (result == false) {
       syslog(
-        LOG_ERR, "thread%2d | cap.grab() failed, will cap.release() and then re-try after sleep(%d)", pl->tid, sleep_sec
+        LOG_ERR, "thread%2d | cap.read() failed, will cap.release() and then re-try after sleep(%d)", pl->tid, sleep_sec
       );
       cap.release();
-      sleep(sleep_sec++);
+      syslog(LOG_ERR, "thread%2d | cap.release()'ed", pl->tid);
+      sleep(sleep_sec*=2);
       // The concern is that each retry attempt leaks some resources, so here we limit the retry frequency.
     } else {
       sleep_sec = 5;
@@ -142,7 +143,8 @@ void initialize_sig_handler() {
 }
 
 int main(int argc, char *argv[]) {
-  openlog("odcs", LOG_PID | LOG_CONS, 0);
+  openlog("cam.odcs", LOG_PID | LOG_CONS, 0); // This is configured in /etc/rsyslog.d/
+  
   initialize_sig_handler();
   initialize_paths(argv[0]);
   json_object* root = json_object_from_file(settings_path);
