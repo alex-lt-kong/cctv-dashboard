@@ -23,6 +23,6 @@ for (let i = 0; i < srcList.length; ++i) {
     browserify(`./src/${srcList[i]}`)
         .transform('babelify', {presets: ['@babel/preset-env', '@babel/preset-react']})
         .bundle()
-        .pipe(fs.createWriteStream(`./public/js/${srcList[i]}`));
+        .pipe(fs.createWriteStream(`./static/js/${srcList[i]}`));
   }
 }

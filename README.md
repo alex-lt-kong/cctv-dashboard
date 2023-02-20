@@ -10,11 +10,8 @@ images to shared memory
 
 ## Dependencies
 * Library search support: `apt install pkg-config`.
-* SSL/TLS support: `apt install gnutls-dev libgcrypt-dev`
-* [Onion HTTP library](https://github.com/davidmoreno/onion)
-    * Onion will be `make install`ed to `/usr/local/lib/`, add the directory to `$LD_LIBRARY_PATH`:
- `export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:/usr/local/lib/`
-* JSON support: `apt install libjson-c-dev`.
+* [Crow HTTP library](https://github.com/CrowCpp/Crow)
+* `nlohmann-json` for JSON support: `apt install nlohmann-json3-dev`
 * [FFmpeg](https://trac.ffmpeg.org/wiki/CompilationGuide), as OpenCV's video I/O backend:
   * `apt-get uninstall ffmpeg`: default ffmpeg installation, if any, will probably not work.
   * `git clone https://github.com/FFmpeg/FFmpeg.git`: this is rarely a one-off thing, cloning the entire repository
@@ -44,3 +41,8 @@ images to shared memory
 
 `libavcodec-dev libavdevice-dev libavfilter-dev libavformat-dev`
 `rm /usr/local/lib/x86_64-linux-gnu/libav*` may not be able to be `make uninstall`ed
+
+## Build
+
+* Back-end: just `make` it
+* Front-end: `node babelify.js [--dev|--prod]`

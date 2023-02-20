@@ -19,7 +19,6 @@ extern "C"
 #include <signal.h>
 #include <pthread.h>
 #include <limits.h>         // PATH_MAX
-#include <json-c/json.h>    // JSON
 #include <libgen.h>         // dirname()
 #include <syslog.h>         // syslog()
 
@@ -32,19 +31,12 @@ extern "C"
 
 #define MSG_BUF_SIZE 4096
 
-extern char* settings_path;
-extern char* public_dir;
-
 struct CamPayload {
-  const char* device_uri;
+  char* device_uri = nullptr;
   char sem_name[32];
   char shm_name[32];
   int tid;
 };
-
-void initialize_paths(char* argv);
-
-void free_paths();
 
 #ifdef __cplusplus
 }

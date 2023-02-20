@@ -1,9 +1,3 @@
-/*
-#ifndef CROW_STATIC_DIRECTORY
-#define CROW_STATIC_DIRECTORY "public/"
-#endif
-*/
-
 #include <string>
 #include <sys/mman.h>
 #include <sys/stat.h>
@@ -19,8 +13,7 @@ using namespace std;
 using namespace crow;
 using njson = nlohmann::json;
 
-string homeDir(getenv("HOME"));
-string settings_path_ = homeDir + "/bin/on-demand-cctv-server/settings.json";
+string settings_path = string(getenv("HOME")) + "/.config/ak-studio/odcs.json";
 njson json_settings;
 
 void ask_for_cred(response& res) {
@@ -53,7 +46,7 @@ string http_authenticate(const request& req) {
 int main()
 {
     crow::SimpleApp app;
-    std::ifstream is(settings_path_);
+    ifstream is(settings_path);
     is >> json_settings;
 
     CROW_ROUTE(app, "/")([](response& res){
@@ -158,7 +151,7 @@ int main()
         size_t jpeg_size = 0;
         memcpy(&jpeg_size, shmptr, 4);
         res.set_header("Content-Type", "image/jpg");
-        res.end(string((char*)(shmptr + 4), jpeg_size));
+        res.end(string((char*)((uint8_t*)shmptr + 4), jpeg_size));
         sem_post(semptr);
         munmap(shmptr, SHM_SIZE);
         close(fd);

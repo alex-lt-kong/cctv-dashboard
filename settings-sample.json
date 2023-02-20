@@ -1,0 +1,20 @@
+{
+  "app": {
+      "interface": "0.0.0.0",
+      "port": 443,
+      "ssl": {
+          "crt_path": "/etc/ssl/certificate.crt",
+          "key_path": "/etc/ssl/certificate.key"
+      },
+      "users": {
+          "user1": "password",
+          "foo": "bar"
+      },
+      "video_devices": [
+        "rtsp://admin:passwprd@192.168.0.1:554/cam/realmonitor?channel=1&subtype=1",
+        "rtsp://admin:passwprd@192.168.0.2:554/cam/realmonitor?channel=1&subtype=1",
+        "rtsp://admin:passwprd@192.168.0.3:554/cam/realmonitor?channel=1&subtype=1"
+      ]
+  }
+}
+
