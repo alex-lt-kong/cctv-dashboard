@@ -1,15 +1,12 @@
 import * as React from 'react';
 import ReactDOM from 'react-dom';
 import axios from 'axios';
-import Grid from '@mui/material/Grid'; // Grid version 1
 import AppBar from '@mui/material/AppBar';
 import Box from '@mui/material/Box';
 import Toolbar from '@mui/material/Toolbar';
 import Typography from '@mui/material/Typography';
-import Card from '@mui/material/Card';
 import Button from '@mui/material/Button';
 import DvrIcon from '@mui/icons-material/Dvr';
-import ImageList from '@mui/material/ImageList';
 import ImageListItem from '@mui/material/ImageListItem';
 import { ThemeProvider, createTheme } from '@mui/material/styles';
 
@@ -17,7 +14,7 @@ class LiveImages extends React.Component {
   constructor(props) {
     super(props);
     this.state = {
-      cctvEndpoint: './cctv/?device_id=',
+      cctvEndpoint: '../../cctv/?device_id=',
       cctvList: [],
       randNums: []
     };
@@ -27,7 +24,7 @@ class LiveImages extends React.Component {
   }
 
   componentDidMount() {
-    axios.get('./get_device_count_json/')
+    axios.get('../../get_device_count_json/')
     .then((response) => {
       console.log(response.data);
       this.setState({
@@ -126,7 +123,7 @@ class NavBar extends React.Component {
   }
 
   componentDidMount() {
-    axios.get('../get_logged_in_user_json/')
+    axios.get('../../get_logged_in_user_json/')
         .then((response) => {
           this.setState({
             user: response.data.data
