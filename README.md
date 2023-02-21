@@ -11,8 +11,8 @@ images to shared memory
 ## Gallery
 
 <p float="left">
-    <img src="./assets/desktop.png" width="675px" alt="Desktop GUI" />    
-    <img src="./assets/mobile.png" width="137px" alt="Mobile GUI" />
+    <img src="./assets/desktop.png" width="674px" alt="Desktop GUI" />    
+    <img src="./assets/mobile.png" width="139px" alt="Mobile GUI" />
 </p>
 
 
