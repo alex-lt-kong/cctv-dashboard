@@ -8,6 +8,14 @@ images to shared memory
 
 <img src="./assets/system-diagram.drawio.png" />
 
+## Gallery
+
+<p float="left">
+    <img src="./assets/desktop.png" width="765px" alt="Desktop GUI" />    
+    <img src="./assets/mobile.png" width="161px" alt="Mobile GUI" />
+</p>
+
+
 ## Dependencies
 * Library search support: `apt install pkg-config`.
 * [Crow HTTP library](https://github.com/CrowCpp/Crow)
