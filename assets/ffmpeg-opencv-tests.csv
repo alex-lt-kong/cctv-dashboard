@@ -16,4 +16,4 @@ n2.6.1, 2.4.13.1,  "./configure", "cmake -D WITH_GSTREAMER=OFF -D BUILD_opencv_p
 n2.8.15, 2.4.13.7,  "./configure --enable-shared", "cmake -D WITH_GSTREAMER=OFF -D BUILD_opencv_python3=OFF ../", "functional, keeps complaining 'Invalid UE golomb code' so not trying to observe memory leakage",Nil
 n2.8, 2.4.13.7,  "./configure --enable-shared", "cmake -D WITH_GSTREAMER=OFF -D BUILD_opencv_python3=OFF ../", "functional, leaks ~3MB per hour (test period: 15 hrs)", Nil
 n1.2.12, 2.4.13.7,  "./configure --enable-shared", "cmake -D WITH_GSTREAMER=OFF -D BUILD_opencv_python3=OFF ../", "functional, memory leak is minimal but sometimes the program quits if cap.read() fails", Nil
-n2.8.1, 2.4.13.7,  "./configure --enable-shared --disable-podpages", "cmake -D WITH_GSTREAMER=OFF -D BUILD_opencv_python3=OFF ../", "testing...", Nil
+n2.8.1, 2.4.13.7,  "./configure --enable-shared --disable-podpages", "cmake -D WITH_GSTREAMER=OFF -D BUILD_opencv_python3=OFF ../", "functional, leaks around 200MB over two weeks", Nil
