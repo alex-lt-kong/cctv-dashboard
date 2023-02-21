@@ -12,7 +12,7 @@ images to shared memory
 
 <p float="left">
     <img src="./assets/desktop.png" width="674px" alt="Desktop GUI" />    
-    <img src="./assets/mobile.png" width="139px" alt="Mobile GUI" />
+    <img src="./assets/mobile.png" width="141px" alt="Mobile GUI" />
 </p>
 
 
