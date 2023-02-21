@@ -1,7 +1,7 @@
 const fs = require('fs');
 const browserify = require('browserify');
 
-const srcList = ['odcs.js'];
+const srcList = ['cd.js'];
 
 if (process.argv.length !== 3 || (process.argv[2] !== '--prod' && process.argv[2] !== '--dev')) {
   throw new Error('Shoud specify --prod or --dev');

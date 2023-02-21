@@ -1,10 +1,10 @@
-# On-demand CCTV server
+# CCTV Dashboard
 
 * Twenty IP cameras are set and constantly streaming via the RTSP protocol.
 * `cam.out`: a multi-thread RTSP client, reading images from IP cameras, throttling the frame rate down then writting
 images to shared memory
-* `odcs.out`: an HTTP server and shared memory reader, serving images to clients on demand.
-* `odcs.js`: the ReactJs frontend showing images to end-user
+* `cd.out`: an HTTP server and shared memory reader, serving images to clients on demand.
+* `cd.js`: the ReactJs frontend showing images to end-user
 
 <img src="./assets/system-diagram.drawio.png" />
 

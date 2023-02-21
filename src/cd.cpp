@@ -43,48 +43,55 @@ string http_authenticate(const request& req) {
     return username;
 }
 
+struct httpAuthMiddleware: ILocalMiddleware {
+    struct context{};
+
+    void before_handle(crow::request& req, crow::response& res,
+        __attribute__((unused)) context& ctx) {
+        string username = http_authenticate(req);
+        if (username.size() == 0) {
+            ask_for_cred(res);
+            return;
+        }
+    }
+
+
+    void after_handle(__attribute__((unused)) crow::request& req,
+        __attribute__((unused)) crow::response& res,
+        __attribute__((unused)) context& ctx) {}
+};
+
 int main()
 {
-    crow::SimpleApp app;
+    App<httpAuthMiddleware> app;
     ifstream is(settings_path);
     is >> json_settings;
 
-    CROW_ROUTE(app, "/")([](response& res){
+    CROW_ROUTE(app, "/")
+        .CROW_MIDDLEWARES(app, httpAuthMiddleware)([](response& res){
         res.redirect("/static/html/index.html");
         res.end();
     });
 
-    CROW_ROUTE(app, "/get_logged_in_user_json/")([](
-        const request& req, response& res){
-        string username = http_authenticate(req);
-        if (username.size() == 0) {
-            ask_for_cred(res);            
-            return;
-        }
-        res.end(json::wvalue({
-            {"status", "success"}, {"data", username}
-        }).dump());
+    CROW_ROUTE(app, "/get_logged_in_user_json/")
+        .CROW_MIDDLEWARES(app, httpAuthMiddleware)([](
+        const request& req){
+        return json::wvalue({
+            {"status", "success"}, {"data", http_authenticate(req)}
+        });
     });
 
-    CROW_ROUTE(app, "/get_device_count_json/")([](
-        const request& req, response& res){
-        string username = http_authenticate(req);
-        if (username.size() == 0) {
-            ask_for_cred(res);            
-            return;
-        }
-        res.end(json::wvalue({
+    CROW_ROUTE(app, "/get_device_count_json/")
+        .CROW_MIDDLEWARES(app, httpAuthMiddleware)([](){
+        return json::wvalue({
             {"status", "success"},
             {"data", json_settings["app"]["video_devices"].size()}
-        }).dump());
+        });
     });
 
-    CROW_ROUTE(app, "/cctv/")([](const request& req, response& res){
-        string username = http_authenticate(req);
-        if (username.size() == 0) {
-            ask_for_cred(res);            
-            return;
-        }
+    CROW_ROUTE(app, "/cctv/")
+        .CROW_MIDDLEWARES(app, httpAuthMiddleware)(
+        [](const request& req, response& res){
         if (req.url_params.get("device_id") == nullptr) {
             res.code = 400;
             res.end(json::wvalue({
