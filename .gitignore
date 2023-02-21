@@ -1,8 +1,17 @@
+#
+#
 # ===== custom =====
-settings.json
-/public/js/*.js
+#
+#
 
+settings.json
+/static/js/*.js
+
+#
+#
 # ===== nodejs =====
+#
+#
 
 # Logs
 logs
@@ -135,8 +144,11 @@ dist
 .yarn/install-state.gz
 .pnp.*
 
-
+#
+#
 # ===== vs code =====
+#
+#
 
 .vscode/*
 !.vscode/settings.json
@@ -151,7 +163,12 @@ dist
 # Built Visual Studio Code Extensions
 *.vsix
 
+#
+#
 # ===== C =====
+#
+#
+
 # Prerequisites
 *.d
 
