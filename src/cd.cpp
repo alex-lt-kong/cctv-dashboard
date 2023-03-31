@@ -112,7 +112,7 @@ int main()
         sprintf(sem_name, "/odcs.sem%d", device_id);
         sprintf(shm_name, "/odcs.shm%d", device_id);
 
-        int fd = shm_open(shm_name, O_RDWR, PERMS);
+        int fd = shm_open(shm_name, O_RDONLY, PERMS);
         if (fd < 0) {
             cerr << "shm_open(): " << strerror(errno) << endl;
             res.code = 500;
@@ -122,7 +122,7 @@ int main()
             }).dump());
             return;
         }
-        void* shmptr = mmap(NULL, SHM_SIZE, PROT_READ | PROT_WRITE, MAP_SHARED,
+        void* shmptr = mmap(NULL, SHM_SIZE, PROT_READ, MAP_SHARED,
             fd, 0);
         if ((void*) -1 == shmptr) {
             cerr << "mmap(): " << strerror(errno) << endl;            
@@ -156,9 +156,9 @@ int main()
         }
 
         size_t jpeg_size = 0;
-        memcpy(&jpeg_size, shmptr, 4);
+        memcpy(&jpeg_size, shmptr, sizeof(size_t));
         res.set_header("Content-Type", "image/jpg");
-        res.end(string((char*)((uint8_t*)shmptr + 4), jpeg_size));
+        res.end(string((char*)((uint8_t*)shmptr + sizeof(size_t)), jpeg_size));
         sem_post(semptr);
         munmap(shmptr, SHM_SIZE);
         close(fd);

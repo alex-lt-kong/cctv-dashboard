@@ -7,9 +7,6 @@ CXX = g++
 
 main: cd.out cam.out
 
-cam.out: $(SRC_DIR)/cam.cpp
-	$(CXX) -o cam.out $(SRC_DIR)/cam.cpp -I/usr/local/include/ $(OCV_LIB) $(LIBS) $(OPT) $(SANITIZER)
-
 cd.out: $(SRC_DIR)/cd.cpp
 	$(CXX) -o cd.out $(SRC_DIR)/cd.cpp $(OPT) -DCROW_ENABLE_SSL $(LIBS) -lssl -lcrypto $(SANITIZER)
 
