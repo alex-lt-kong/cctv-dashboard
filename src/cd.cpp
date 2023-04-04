@@ -121,11 +121,10 @@ void load_image_from_http(uint32_t device_id, response& res) {
 }
 
 void load_image_from_shm(uint32_t device_id, response& res) {
-    char sem_name[32], shm_name[32]; 
-    sprintf(sem_name, "/cctv-dashboard.sem%d", device_id);
-    sprintf(shm_name, "/cctv-dashboard.shm%d", device_id);
+    string sem_name = json_settings["app"]["video_sources"][device_id]["semaphore_name"];
+    string shm_name = json_settings["app"]["video_sources"][device_id]["shared_mem_name"];
 
-    int fd = shm_open(shm_name, O_RDONLY, PERMS);
+    int fd = shm_open(shm_name.c_str(), O_RDONLY, PERMS);
     if (fd < 0) {
         cerr << "shm_open(): " << strerror(errno) << endl;
         res.code = 500;
@@ -147,7 +146,7 @@ void load_image_from_shm(uint32_t device_id, response& res) {
         res.end();
         return;
     }
-    sem_t* semptr = sem_open(sem_name, O_RDWR);
+    sem_t* semptr = sem_open(sem_name.c_str(), O_RDWR);
     if (semptr == SEM_FAILED) {
         cerr << "sem_open(): " << strerror(errno) << endl;
         res.body = json::wvalue({

@@ -9,6 +9,10 @@
       "interface": "127.0.0.1",
       "port": 443,
       "ssl": {
+          /* HTTPS should only be enabled if you want to directly expose
+          cctv-dashboard to the Internet. This is generally not recommended
+          as the HTTP framework being used, Crow, is not considered as robust
+          as more "mainstream" ones, such as Apache. */
           "enabled": false,
           "crt_path": "/etc/ssl/certificate.crt",
           "key_path": "/etc/ssl/certificate.key"
@@ -18,8 +22,7 @@
           "user2": "bar"
       },
       /* Can only be either "shared_memory" or "http" at the moment */
-      "ipc_mode": "shared_memory",
-      
+      "ipc_mode": "shared_memory",      
       "video_sources": [
         /* If "ipc_mode" is "http" */
         {
