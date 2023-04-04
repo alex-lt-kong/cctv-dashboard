@@ -13,11 +13,12 @@ using namespace std;
 using namespace crow;
 using njson = nlohmann::json;
 
-string settings_path = string(getenv("HOME")) + "/.config/ak-studio/cctv-dashboard.jsonc";
+string settings_path = string(getenv("HOME")) +
+    "/.config/ak-studio/cctv-dashboard.jsonc";
 njson json_settings;
 
 void ask_for_cred(response& res) {
-    res.set_header("WWW-Authenticate", "Basic realm=On-demand CCTV server");
+    res.set_header("WWW-Authenticate", "Basic realm=CCTV Dashboard");
     res.code = 401;
     res.write("<h1>Unauthorized access</h1>");
     res.end();
@@ -133,7 +134,7 @@ int main(int argc, char* argv[]) {
         }
         void* shmptr = mmap(NULL, SHM_SIZE, PROT_READ, MAP_SHARED,
             fd, 0);
-        if ((void*) -1 == shmptr) {
+        if (shmptr == MAP_FAILED) {
             cerr << "mmap(): " << strerror(errno) << endl;            
             res.body = json::wvalue({
                 {"status", "error"},
@@ -144,7 +145,7 @@ int main(int argc, char* argv[]) {
             return;
         }
         sem_t* semptr = sem_open(sem_name, O_RDWR);
-        if (semptr == (void*) -1) {
+        if (semptr == SEM_FAILED) {
             cerr << "sem_open(): " << strerror(errno) << endl;
             res.body = json::wvalue({
                 {"status", "error"},
@@ -168,10 +169,11 @@ int main(int argc, char* argv[]) {
         memcpy(&jpeg_size, shmptr, sizeof(size_t));
         res.set_header("Content-Type", "image/jpg");
         res.end(string((char*)((uint8_t*)shmptr + sizeof(size_t)), jpeg_size));
-        sem_post(semptr);
-        munmap(shmptr, SHM_SIZE);
-        close(fd);
-        sem_close(semptr);
+        if (sem_post(semptr) != 0) { perror("sem_post()"); }
+        if (munmap(shmptr, SHM_SIZE) != 0) { perror("munmap()"); }
+        /* On the reader side, we need to close() ONLY, no shm_unlink() */
+        if (close(fd) != 0) { perror("close()"); }  
+        if (sem_close(semptr) != 0) { perror("sem_close()"); }
     });
 
     if (json_settings["app"]["ssl"]["enabled"]) {
