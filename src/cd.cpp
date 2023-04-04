@@ -13,7 +13,7 @@ using namespace std;
 using namespace crow;
 using njson = nlohmann::json;
 
-string settings_path = string(getenv("HOME")) + "/.config/ak-studio/odcs.json";
+string settings_path = string(getenv("HOME")) + "/.config/ak-studio/cctv-dashboard.jsonc";
 njson json_settings;
 
 void ask_for_cred(response& res) {
@@ -61,15 +61,24 @@ struct httpAuthMiddleware: ILocalMiddleware {
         __attribute__((unused)) context& ctx) {}
 };
 
-int main()
-{
+int main(int argc, char* argv[]) {
+    if (argc > 2) {
+        cerr << "Usage: ./cd.out [config-file.jsonc]" << endl;
+        return EXIT_FAILURE;
+    } else if (argc == 2) {
+        settings_path = string(argv[1]);
+    }
+    cout << "settings_path: " << settings_path << endl;
     App<httpAuthMiddleware> app;
     ifstream is(settings_path);
-    is >> json_settings;
+    json_settings = njson::parse(is,
+        /* callback */ nullptr,
+        /* allow exceptions */ true,
+        /* ignore_comments */ true);
 
     CROW_ROUTE(app, "/")
         .CROW_MIDDLEWARES(app, httpAuthMiddleware)([](response& res){
-        res.redirect("/static/html/index.html");
+        res.set_static_file_info("./static/html/index.html");
         res.end();
     });
 
@@ -109,8 +118,8 @@ int main()
             return;
         }
         char sem_name[32], shm_name[32]; 
-        sprintf(sem_name, "/odcs.sem%d", device_id);
-        sprintf(shm_name, "/odcs.shm%d", device_id);
+        sprintf(sem_name, "/cctv-dashboard.sem%d", device_id);
+        sprintf(shm_name, "/cctv-dashboard.shm%d", device_id);
 
         int fd = shm_open(shm_name, O_RDONLY, PERMS);
         if (fd < 0) {
@@ -165,8 +174,14 @@ int main()
         sem_close(semptr);
     });
 
-    app.port(json_settings["app"]["port"].get<int>()).multithreaded()
-    .ssl_file(json_settings["app"]["ssl"]["crt_path"],
-        json_settings["app"]["ssl"]["key_path"])
-    .run();
+    if (json_settings["app"]["ssl"]["enabled"]) {
+        app.bindaddr(json_settings["app"]["interface"])
+            .port(json_settings["app"]["port"].get<int>()).multithreaded()
+            .ssl_file(json_settings["app"]["ssl"]["crt_path"],
+                    json_settings["app"]["ssl"]["key_path"])
+            .run();
+    } else {
+        app.bindaddr(json_settings["app"]["interface"])
+           .port(json_settings["app"]["port"].get<int>()).multithreaded().run();
+    }
 }

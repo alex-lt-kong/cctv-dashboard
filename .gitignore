@@ -6,6 +6,7 @@
 
 settings.json
 /static/js/*.js
+*.out
 
 #
 #

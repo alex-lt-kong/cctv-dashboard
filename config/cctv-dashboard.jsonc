@@ -3,6 +3,7 @@
       "interface": "0.0.0.0",
       "port": 443,
       "ssl": {
+          "enabled": false,
           "crt_path": "/etc/ssl/certificate.crt",
           "key_path": "/etc/ssl/certificate.key"
       },
