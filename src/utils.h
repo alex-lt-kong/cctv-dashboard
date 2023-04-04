@@ -6,9 +6,6 @@ extern "C"
 {
 #endif
 
-#include <onion/log.h>
-#include <onion/codecs.h>
-#include <onion/onion.h>
 #include <pthread.h>
 #include <string.h>
 #include <fcntl.h>  // open()

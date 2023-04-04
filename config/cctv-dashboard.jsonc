@@ -1,6 +1,12 @@
 {
   "app": {
-      "interface": "0.0.0.0",
+      /* It is recommended to deploy cctv-dashboard behind a reverse proxy
+      server, such as Apache, as let the reverse proxy server to handle
+      http authentication before sending requests to cctv-dashboard.
+      We can enable http authentication in both reverse proxy server and
+      in cctv-dashboard, as long as the username/password combinations
+      are the same. */
+      "interface": "127.0.0.1",
       "port": 443,
       "ssl": {
           "enabled": false,
@@ -8,12 +14,32 @@
           "key_path": "/etc/ssl/certificate.key"
       },
       "users": {
-          "user1": "password",
-          "foo": "bar"
+          "user1": "foo",
+          "user2": "bar"
       },
       /* Can only be either "shared_memory" or "http" at the moment */
       "ipc_mode": "shared_memory",
-      "video_device_count": 3
+      
+      "video_sources": [
+        /* If "ipc_mode" is "http" */
+        {
+            "url": "https://username:password@localhost:54321/live_image/?deviceId=0"
+        },
+        {
+            "url": "https://username:password@localhost:54321/live_image/?deviceId=1"
+        },
+        /* If "ipc_mode" is "shared_memory "*/
+        {
+          "semaphore_name": "/sem0",
+          "shared_mem_name": "/shm0"
+        },
+        {
+          "semaphore_name": "/sem1",
+          "shared_mem_name": "/shm1"
+        }
+        /* Note that the list items can only be either http or shared_memory,
+        but not both. */
+      ]
   }
 }
 

@@ -83,21 +83,33 @@ size_t curl_http_callback(void* ptr, size_t size, size_t nmemb, std::string* dat
 
 void load_image_from_http(uint32_t device_id, response& res) {
     auto curl = curl_easy_init();
+    CURLcode curl_res;
     if (curl) {
-        curl_easy_setopt(curl, CURLOPT_URL, "https://www.example.com");
+        curl_easy_setopt(curl, CURLOPT_URL,
+            json_settings["app"]["video_sources"][device_id]["url"].get<string>().c_str());
         curl_easy_setopt(curl, CURLOPT_NOPROGRESS, 1L);
         curl_easy_setopt(curl, CURLOPT_MAXREDIRS, 50L);
         curl_easy_setopt(curl, CURLOPT_TCP_KEEPALIVE, 1L);
 
         std::string response_string;
         std::string header_string;
+        //curl_easy_setopt(curl, CURLOPT_SSL_VERIFYPEER, 0L);
         curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, curl_http_callback);
         curl_easy_setopt(curl, CURLOPT_WRITEDATA, &response_string);
         curl_easy_setopt(curl, CURLOPT_HEADERDATA, &header_string);
-
-        curl_easy_perform(curl);
-        cout << response_string;
-        curl_easy_cleanup(curl);
+        curl_res = curl_easy_perform(curl);
+        if(curl_res != CURLE_OK) {
+            res.code = 500;
+            res.end(json::wvalue({
+                {"status", "error"},
+                {"data", "curl_easy_perform() error: " +
+                    string(curl_easy_strerror(curl_res))}
+            }).dump()); 
+            return; 
+        }
+        curl_easy_cleanup(curl);        
+        res.write(response_string);
+        res.end();
         curl = NULL;
     } else {
         res.code = 400;
@@ -199,7 +211,7 @@ int main(int argc, char* argv[]) {
         .CROW_MIDDLEWARES(app, httpAuthMiddleware)([](){
         return json::wvalue({
             {"status", "success"},
-            {"data", json_settings["app"]["video_device_count"].get<int>()}
+            {"data", json_settings["app"]["video_sources"].size()}
         });
     });
 
@@ -214,7 +226,7 @@ int main(int argc, char* argv[]) {
             return;
         }
         uint32_t device_id = atoi(req.url_params.get("device_id"));
-        if (device_id >= json_settings["app"]["video_device_count"]) {
+        if (device_id >= json_settings["app"]["video_sources"].size()) {
             res.code = 400;
             res.end(json::wvalue({
                 {"status", "error"},
