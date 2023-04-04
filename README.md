@@ -17,6 +17,7 @@ backend and communicate with it with shared memory.
 ## Dependencies
 * [Crow HTTP library](https://github.com/CrowCpp/Crow)
 * `nlohmann-json` for JSON support: `apt install nlohmann-json3-dev`
+* `cURL` for HTTP support: `apt install libcurl4-gnutls-dev`
 
 ## Build
 

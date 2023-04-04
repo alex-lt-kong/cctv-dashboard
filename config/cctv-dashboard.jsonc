@@ -11,11 +11,9 @@
           "user1": "password",
           "foo": "bar"
       },
-      "video_devices": [
-        "rtsp://admin:passwprd@192.168.0.1:554/cam/realmonitor?channel=1&subtype=1",
-        "rtsp://admin:passwprd@192.168.0.2:554/cam/realmonitor?channel=1&subtype=1",
-        "rtsp://admin:passwprd@192.168.0.3:554/cam/realmonitor?channel=1&subtype=1"
-      ]
+      /* Can only be either "shared_memory" or "http" at the moment */
+      "ipc_mode": "shared_memory",
+      "video_device_count": 3
   }
 }
 

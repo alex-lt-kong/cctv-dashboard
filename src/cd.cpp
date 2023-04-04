@@ -6,6 +6,7 @@
 
 #include <nlohmann/json.hpp>
 #include <crow.h>
+#include <curl/curl.h>
 
 #include "utils.h"
 
@@ -13,9 +14,8 @@ using namespace std;
 using namespace crow;
 using njson = nlohmann::json;
 
-string settings_path = string(getenv("HOME")) +
-    "/.config/ak-studio/cctv-dashboard.jsonc";
 njson json_settings;
+string ipc_mode;
 
 void ask_for_cred(response& res) {
     res.set_header("WWW-Authenticate", "Basic realm=CCTV Dashboard");
@@ -44,6 +44,7 @@ string http_authenticate(const request& req) {
     return username;
 }
 
+
 struct httpAuthMiddleware: ILocalMiddleware {
     struct context{};
 
@@ -62,21 +63,124 @@ struct httpAuthMiddleware: ILocalMiddleware {
         __attribute__((unused)) context& ctx) {}
 };
 
-int main(int argc, char* argv[]) {
-    if (argc > 2) {
-        cerr << "Usage: ./cd.out [config-file.jsonc]" << endl;
-        return EXIT_FAILURE;
-    } else if (argc == 2) {
-        settings_path = string(argv[1]);
-    }
+
+void load_settings(string settings_path) {
     cout << "settings_path: " << settings_path << endl;
-    App<httpAuthMiddleware> app;
+    
     ifstream is(settings_path);
     json_settings = njson::parse(is,
         /* callback */ nullptr,
         /* allow exceptions */ true,
         /* ignore_comments */ true);
+    ipc_mode = json_settings["app"]["ipc_mode"];
+}
 
+size_t curl_http_callback(void* ptr, size_t size, size_t nmemb, std::string* data) {
+    data->append((char*)ptr, size * nmemb);
+    return size * nmemb;
+}
+
+
+void load_image_from_http(uint32_t device_id, response& res) {
+    auto curl = curl_easy_init();
+    if (curl) {
+        curl_easy_setopt(curl, CURLOPT_URL, "https://www.example.com");
+        curl_easy_setopt(curl, CURLOPT_NOPROGRESS, 1L);
+        curl_easy_setopt(curl, CURLOPT_MAXREDIRS, 50L);
+        curl_easy_setopt(curl, CURLOPT_TCP_KEEPALIVE, 1L);
+
+        std::string response_string;
+        std::string header_string;
+        curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, curl_http_callback);
+        curl_easy_setopt(curl, CURLOPT_WRITEDATA, &response_string);
+        curl_easy_setopt(curl, CURLOPT_HEADERDATA, &header_string);
+
+        curl_easy_perform(curl);
+        cout << response_string;
+        curl_easy_cleanup(curl);
+        curl = NULL;
+    } else {
+        res.code = 400;
+        res.end(json::wvalue({
+            {"status", "error"},
+            {"data", "curl_easy_init() failed"}
+        }).dump());
+    }
+}
+
+void load_image_from_shm(uint32_t device_id, response& res) {
+    char sem_name[32], shm_name[32]; 
+    sprintf(sem_name, "/cctv-dashboard.sem%d", device_id);
+    sprintf(shm_name, "/cctv-dashboard.shm%d", device_id);
+
+    int fd = shm_open(shm_name, O_RDONLY, PERMS);
+    if (fd < 0) {
+        cerr << "shm_open(): " << strerror(errno) << endl;
+        res.code = 500;
+        res.end(json::wvalue({
+            {"status", "error"},
+            {"data", "Failed to read image from device"}
+        }).dump());
+        return;
+    }
+    void* shmptr = mmap(NULL, SHM_SIZE, PROT_READ, MAP_SHARED,
+        fd, 0);
+    if (shmptr == MAP_FAILED) {
+        cerr << "mmap(): " << strerror(errno) << endl;            
+        res.body = json::wvalue({
+            {"status", "error"},
+            {"data", "Failed to read image from device"}
+        }).dump();
+        res.code = 500;
+        res.end();
+        return;
+    }
+    sem_t* semptr = sem_open(sem_name, O_RDWR);
+    if (semptr == SEM_FAILED) {
+        cerr << "sem_open(): " << strerror(errno) << endl;
+        res.body = json::wvalue({
+            {"status", "error"},
+            {"data", "Failed to read image from device"}
+        }).dump();
+        res.code = 500;
+        res.end();
+        return;
+    }
+    if (sem_wait(semptr) < 0) {
+        cerr << "sem_wait(): " << strerror(errno) << endl;
+        res.code = 500;
+        res.end(json::wvalue({
+            {"status", "error"},
+            {"data", "Failed to lock image for reading"}
+        }).dump());
+        return;
+    }
+
+    size_t jpeg_size = 0;
+    memcpy(&jpeg_size, shmptr, sizeof(size_t));
+    res.set_header("Content-Type", "image/jpg");
+    res.end(string((char*)((uint8_t*)shmptr + sizeof(size_t)), jpeg_size));
+    if (sem_post(semptr) != 0) { perror("sem_post()"); }
+    if (munmap(shmptr, SHM_SIZE) != 0) { perror("munmap()"); }
+    /* On the reader side, we need to close() ONLY, no shm_unlink() */
+    if (close(fd) != 0) { perror("close()"); }  
+    if (sem_close(semptr) != 0) { perror("sem_close()"); }
+}
+
+int main(int argc, char* argv[]) {
+    string settings_path = string(getenv("HOME")) +
+        "/.config/ak-studio/cctv-dashboard.jsonc";
+    if (argc > 2) {
+        cerr << "Usage: ./cd.out [config-file.jsonc]" << endl;
+        return EXIT_FAILURE;
+    } else if (argc == 2) {
+        settings_path = string(argv[1]);
+    } 
+    load_settings(settings_path);
+
+    curl_global_init(CURL_GLOBAL_DEFAULT);
+
+    App<httpAuthMiddleware> app;
     CROW_ROUTE(app, "/")
         .CROW_MIDDLEWARES(app, httpAuthMiddleware)([](response& res){
         res.set_static_file_info("./static/html/index.html");
@@ -95,7 +199,7 @@ int main(int argc, char* argv[]) {
         .CROW_MIDDLEWARES(app, httpAuthMiddleware)([](){
         return json::wvalue({
             {"status", "success"},
-            {"data", json_settings["app"]["video_devices"].size()}
+            {"data", json_settings["app"]["video_device_count"].get<int>()}
         });
     });
 
@@ -110,7 +214,7 @@ int main(int argc, char* argv[]) {
             return;
         }
         uint32_t device_id = atoi(req.url_params.get("device_id"));
-        if (device_id >= json_settings["app"]["video_devices"].size()) {
+        if (device_id >= json_settings["app"]["video_device_count"]) {
             res.code = 400;
             res.end(json::wvalue({
                 {"status", "error"},
@@ -118,62 +222,18 @@ int main(int argc, char* argv[]) {
             }).dump());
             return;
         }
-        char sem_name[32], shm_name[32]; 
-        sprintf(sem_name, "/cctv-dashboard.sem%d", device_id);
-        sprintf(shm_name, "/cctv-dashboard.shm%d", device_id);
-
-        int fd = shm_open(shm_name, O_RDONLY, PERMS);
-        if (fd < 0) {
-            cerr << "shm_open(): " << strerror(errno) << endl;
-            res.code = 500;
+        if (ipc_mode == "shared_memory") {
+            load_image_from_shm(device_id, res);
+        } else if (ipc_mode == "http") {
+            load_image_from_http(device_id, res);
+        } else {
+            res.code = 400;
             res.end(json::wvalue({
                 {"status", "error"},
-                {"data", "Failed to read image from device"}
+                {"data", "Unsupported ipc_mode"}
             }).dump());
             return;
         }
-        void* shmptr = mmap(NULL, SHM_SIZE, PROT_READ, MAP_SHARED,
-            fd, 0);
-        if (shmptr == MAP_FAILED) {
-            cerr << "mmap(): " << strerror(errno) << endl;            
-            res.body = json::wvalue({
-                {"status", "error"},
-                {"data", "Failed to read image from device"}
-            }).dump();
-            res.code = 500;
-            res.end();
-            return;
-        }
-        sem_t* semptr = sem_open(sem_name, O_RDWR);
-        if (semptr == SEM_FAILED) {
-            cerr << "sem_open(): " << strerror(errno) << endl;
-            res.body = json::wvalue({
-                {"status", "error"},
-                {"data", "Failed to read image from device"}
-            }).dump();
-            res.code = 500;
-            res.end();
-            return;
-        }
-        if (sem_wait(semptr) < 0) {
-            cerr << "sem_wait(): " << strerror(errno) << endl;
-            res.code = 500;
-            res.end(json::wvalue({
-                {"status", "error"},
-                {"data", "Failed to lock image for reading"}
-            }).dump());
-            return;
-        }
-
-        size_t jpeg_size = 0;
-        memcpy(&jpeg_size, shmptr, sizeof(size_t));
-        res.set_header("Content-Type", "image/jpg");
-        res.end(string((char*)((uint8_t*)shmptr + sizeof(size_t)), jpeg_size));
-        if (sem_post(semptr) != 0) { perror("sem_post()"); }
-        if (munmap(shmptr, SHM_SIZE) != 0) { perror("munmap()"); }
-        /* On the reader side, we need to close() ONLY, no shm_unlink() */
-        if (close(fd) != 0) { perror("close()"); }  
-        if (sem_close(semptr) != 0) { perror("sem_close()"); }
     });
 
     if (json_settings["app"]["ssl"]["enabled"]) {
@@ -186,4 +246,6 @@ int main(int argc, char* argv[]) {
         app.bindaddr(json_settings["app"]["interface"])
            .port(json_settings["app"]["port"].get<int>()).multithreaded().run();
     }
+
+    curl_global_cleanup();
 }
