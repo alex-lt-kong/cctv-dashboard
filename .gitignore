@@ -1,15 +1,5 @@
 #
 #
-# ===== custom =====
-#
-#
-
-settings.json
-/static/js/*.js
-*.out
-
-#
-#
 # ===== nodejs =====
 #
 #
@@ -222,3 +212,15 @@ modules.order
 Module.symvers
 Mkfile.old
 dkms.conf
+
+#
+#
+# ===== custom =====
+#
+#
+
+settings.json
+/static/js/*.js
+build/
+# for protobuf relative reference to work
+src/*.pb.*

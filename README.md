@@ -1,8 +1,8 @@
 # CCTV Dashboard
 
-* A web dashboard used to preview live images from CCTV cameras. It mostly
-use [camera-server](https://github.com/alex-lt-kong/camera-server) as its
-backend and communicate with it with shared memory.
+- A web dashboard used to preview live images from CCTV cameras. It is designed
+  to use [cuda-motion](https://github.com/alex-lt-kong/cuda-motion) as its
+  backend and communicate with it using POSIX shared memory.
 
 <img src="./assets/system-diagram.drawio.png" />
 
@@ -13,13 +13,16 @@ backend and communicate with it with shared memory.
     <img src="./assets/mobile.png" width="142px" alt="Mobile GUI" />
 </p>
 
-
 ## Dependencies
-* [Crow HTTP library](https://github.com/CrowCpp/Crow)
-* `nlohmann-json` for JSON support: `apt install nlohmann-json3-dev`
-* `cURL` for HTTP support: `apt install libcurl4-gnutls-dev`
+
+- [Crow HTTP library](https://github.com/CrowCpp/Crow)
+- `nlohmann-json` for JSON support: `apt install nlohmann-json3-dev`
+- `cURL` for HTTP support: `apt install libcurl4-gnutls-dev`
+- `protobuf`
 
 ## Build
 
-* Back-end: just `make` it
-* Front-end: `node babelify.js [--dev|--prod]`
+- Back-end: just `make` it.
+- Front-end:
+  - `npm install`
+  - `node babelify.js [--dev|--prod]`
