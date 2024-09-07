@@ -165,7 +165,6 @@ void load_image_from_shm(uint32_t device_id, response &res) {
   SnapshotMsg msg;
   msg.ParseFromString(
       string((char *)((uint8_t *)shmptr + sizeof(size_t)), payload_size));
-  cout << msg.rateofchange() << endl;
   res.set_header("Content-Type", "image/jpg");
   res.end(msg.jpegbytes());
   if (sem_post(semptr) != 0) {
