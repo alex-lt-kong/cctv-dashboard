@@ -248,15 +248,17 @@ int main(int argc, char *argv[]) {
         }
       });
 
-  if (json_settings["app"]["ssl"]["enabled"]) {
-    app.bindaddr(json_settings["app"]["interface"])
+  if (json_settings.value("/app/ssl/enabled"_json_pointer, false)) {
+    app.bindaddr(
+           json_settings.value("/app/interface"_json_pointer, "127.0.0.1"))
         .port(json_settings["app"]["port"].get<int>())
         .multithreaded()
         .ssl_file(json_settings["app"]["ssl"]["crt_path"],
                   json_settings["app"]["ssl"]["key_path"])
         .run();
   } else {
-    app.bindaddr(json_settings["app"]["interface"])
+    app.bindaddr(
+           json_settings.value("/app/interface"_json_pointer, "127.0.0.1"))
         .port(json_settings["app"]["port"].get<int>())
         .multithreaded()
         .run();

@@ -22,7 +22,10 @@
 
 ## Build
 
-- Back-end: just `make` it.
+- Back-end:
+  - `mkdir ./build && ./build`
+  - `cmake ../`
+  - `make -j2`
 - Front-end:
   - `npm install`
   - `node babelify.js [--dev|--prod]`
