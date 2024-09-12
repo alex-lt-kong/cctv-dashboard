@@ -1,22 +1,22 @@
-import * as React from 'react';
-import ReactDOM from 'react-dom';
-import axios from 'axios';
-import AppBar from '@mui/material/AppBar';
-import Box from '@mui/material/Box';
-import Toolbar from '@mui/material/Toolbar';
-import Typography from '@mui/material/Typography';
-import Button from '@mui/material/Button';
-import DvrIcon from '@mui/icons-material/Dvr';
-import ImageListItem from '@mui/material/ImageListItem';
-import { ThemeProvider, createTheme } from '@mui/material/styles';
+import * as React from "react";
+import ReactDOM from "react-dom";
+import axios from "axios";
+import AppBar from "@mui/material/AppBar";
+import Box from "@mui/material/Box";
+import Toolbar from "@mui/material/Toolbar";
+import Typography from "@mui/material/Typography";
+import Button from "@mui/material/Button";
+import DvrIcon from "@mui/icons-material/Dvr";
+import ImageListItem from "@mui/material/ImageListItem";
+import { ThemeProvider, createTheme } from "@mui/material/styles";
 
 class LiveImages extends React.Component {
   constructor(props) {
     super(props);
     this.state = {
-      cctvEndpoint: '../../cctv/?device_id=',
+      cctvEndpoint: "../../cctv/?device_id=",
       cctvList: [],
-      randNums: []
+      randNums: [],
     };
     this.timer = 0;
     this.startTimer = this.startTimer.bind(this);
@@ -24,20 +24,19 @@ class LiveImages extends React.Component {
   }
 
   componentDidMount() {
-    axios.get('../../get_device_count_json/')
-    .then((response) => {
-      console.log(response.data);
-      this.setState({
-        cctvList: Array.from(Array(response.data.data).keys()),
-        randNums: Array.from(Array(response.data.data).keys())
+    axios
+      .get("../../get_device_count_json/")
+      .then((response) => {
+        console.log(response.data);
+        this.setState({
+          cctvList: Array.from(Array(response.data.data).keys()),
+          randNums: Array.from(Array(response.data.data).keys()),
+        });
+      })
+      .catch((error) => {
+        console.error(error);
+        alert(`${error}`);
       });
-    })
-    .catch((error) => {
-      console.error(error);
-      alert(`${error}`);
-    });
-
-    
   }
 
   startTimer() {
@@ -50,7 +49,7 @@ class LiveImages extends React.Component {
     // Remove one second, set state so a re-render happens.
     const seconds = this.state.seconds - 1;
     this.setState({
-      seconds: seconds
+      seconds: seconds,
     });
     // Check if we're at zero.
     if (seconds === 0) {
@@ -60,55 +59,55 @@ class LiveImages extends React.Component {
   }
 
   render() {
-
-
     const theme = createTheme({
       breakpoints: {
         values: {
           mobile: 0,
           tablet: 768,
-          desktop: 1366
-        }
-      }
+          desktop: 1920,
+        },
+      },
     });
     return (
       <ThemeProvider theme={theme}>
-      <Box
-        sx={{
-          display: "grid",
-          gridTemplateColumns: {
-            mobile: "repeat(1, 1fr)",
-            tablet: "repeat(2, 1fr)",
-            desktop: "repeat(4, 1fr)"
-          }
-        }}        
-      >
-        {this.state.cctvList.map((idx) => (
-          <ImageListItem key={idx}>
-            <img
-              style={{objectFit: "fill"}}
-              src={`${this.state.cctvEndpoint}${idx}&${this.state.randNums[idx]}`}
-              loading="lazy"
-              onLoad={()=>{
-                (new Promise((resolve) => setTimeout(resolve, 1000))).then(() => {
-                  const newRandNums = this.state.randNums;
-                  newRandNums[idx] = Math.random();
-                  this.setState({randNums: newRandNums});
-                });
-              }}
-              onError={()=>{
-                (new Promise((resolve) => setTimeout(resolve, 1000))).then(() => {
-                  const newRandNums = this.state.randNums;
-                  newRandNums[idx] = Math.random();
-                  this.setState({randNums: newRandNums});
-                });
-              }}
-              
-            />
-          </ImageListItem>
-        ))}
-      </Box>
-        
+        <Box
+          sx={{
+            display: "grid",
+            gridTemplateColumns: {
+              mobile: "repeat(1, 1fr)",
+              tablet: "repeat(2, 1fr)",
+              desktop: "repeat(4, 1fr)",
+            },
+          }}
+        >
+          {this.state.cctvList.map((idx) => (
+            <ImageListItem key={idx}>
+              <img
+                style={{ objectFit: "fill" }}
+                src={`${this.state.cctvEndpoint}${idx}&${this.state.randNums[idx]}`}
+                loading="lazy"
+                onLoad={() => {
+                  new Promise((resolve) => setTimeout(resolve, 1000)).then(
+                    () => {
+                      const newRandNums = this.state.randNums;
+                      newRandNums[idx] = Math.random();
+                      this.setState({ randNums: newRandNums });
+                    }
+                  );
+                }}
+                onError={() => {
+                  new Promise((resolve) => setTimeout(resolve, 1000)).then(
+                    () => {
+                      const newRandNums = this.state.randNums;
+                      newRandNums[idx] = Math.random();
+                      this.setState({ randNums: newRandNums });
+                    }
+                  );
+                }}
+              />
+            </ImageListItem>
+          ))}
+        </Box>
       </ThemeProvider>
     );
   }
@@ -118,29 +117,30 @@ class NavBar extends React.Component {
   constructor(props) {
     super(props);
     this.state = {
-      user: null
+      user: null,
     };
   }
 
   componentDidMount() {
-    axios.get('../../get_logged_in_user_json/')
-        .then((response) => {
-          this.setState({
-            user: response.data.data
-          });
-        })
-        .catch((error) => {
-          console.error(error);
-          alert(`${error}`);
+    axios
+      .get("../../get_logged_in_user_json/")
+      .then((response) => {
+        this.setState({
+          user: response.data.data,
         });
+      })
+      .catch((error) => {
+        console.error(error);
+        alert(`${error}`);
+      });
   }
 
   render() {
     return (
-      <Box sx={{flexGrow: 1, mb: '1rem'}}>
+      <Box sx={{ flexGrow: 1, mb: "1rem" }}>
         <AppBar position="static">
           <Toolbar>
-            <DvrIcon sx={{display: {md: 'flex'}, mr: 1}} />
+            <DvrIcon sx={{ display: { md: "flex" }, mr: 1 }} />
             <Typography
               variant="h6"
               noWrap
@@ -148,18 +148,21 @@ class NavBar extends React.Component {
               href="/"
               sx={{
                 mr: 2,
-                display: {md: 'flex'},
-                fontFamily: 'monospace',
+                display: { md: "flex" },
+                fontFamily: "monospace",
                 fontWeight: 700,
-                letterSpacing: '.1rem',
-                color: 'inherit',
-                textDecoration: 'none'
+                letterSpacing: ".1rem",
+                color: "inherit",
+                textDecoration: "none",
               }}
             >
               CCTV
             </Typography>
-            <Typography variant="h6" component="div" sx={{flexGrow: 1}}>
-            </Typography>
+            <Typography
+              variant="h6"
+              component="div"
+              sx={{ flexGrow: 1 }}
+            ></Typography>
             <Button color="inherit">{this.state.user}</Button>
           </Toolbar>
         </AppBar>
@@ -172,7 +175,7 @@ class Index extends React.Component {
   constructor(props) {
     super(props);
     this.state = {
-      currDate: new Date()
+      currDate: new Date(),
     };
   }
 
@@ -180,13 +183,20 @@ class Index extends React.Component {
     return (
       <>
         <NavBar />
-        <div style={{maxWidth: '1600px', display: 'block', marginLeft: 'auto', marginRight: 'auto'}}>
-          <LiveImages />          
+        <div
+          style={{
+            maxWidth: "1600px",
+            display: "block",
+            marginLeft: "auto",
+            marginRight: "auto",
+          }}
+        >
+          <LiveImages />
         </div>
       </>
     );
   }
 }
 
-const container = document.getElementById('root');
+const container = document.getElementById("root");
 ReactDOM.render(<Index />, container);

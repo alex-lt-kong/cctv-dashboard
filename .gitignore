@@ -243,3 +243,4 @@ settings.json
 build/
 # for protobuf relative reference to work
 node_modules/
+.npmrc

@@ -1,68 +1,55 @@
+#define FMT_HEADER_ONLY
+#define CROW_STATIC_DIRECTORY PROJECT_SOURCE_DIR "/static/"
+#define CROW_STATIC_ENDPOINT "/static/<path>"
+
 #include "snapshot.pb.h"
-#include "utils.h"
 
 #include <crow.h>
+#include <crow/logging.h>
 #include <curl/curl.h>
+#include <cxxopts.hpp>
 #include <nlohmann/json.hpp>
+#include <spdlog/spdlog.h>
 
 #include <fcntl.h>
+#include <fcntl.h>  // open()
+#include <libgen.h> // dirname()
 #include <semaphore.h>
 #include <string>
 #include <sys/mman.h>
 #include <sys/stat.h>
+#include <unistd.h> // close()
+
+#define SHM_SIZE 2 * 1024 * 1024
+#define PERMS (S_IRUSR | S_IWUSR | S_IRGRP | S_IWGRP)
 
 using namespace std;
 using namespace crow;
+namespace fs = std::filesystem;
 using njson = nlohmann::json;
 
 njson json_settings;
 string ipc_mode;
 
-void ask_for_cred(response &res) {
-  res.set_header("WWW-Authenticate", "Basic realm=CCTV Dashboard");
-  res.code = 401;
-  res.write("<h1>Unauthorized access</h1>");
-  res.end();
-}
-
-string http_authenticate(const request &req) {
-  string myauth = req.get_header_value("Authorization");
-  if (myauth.size() < 6) {
-    return "";
-  }
-  string mycreds = myauth.substr(6);
-  string d_mycreds = crow::utility::base64decode(mycreds, mycreds.size());
-  size_t found = d_mycreds.find(':');
-  string username = d_mycreds.substr(0, found);
-  string password = d_mycreds.substr(found + 1);
-  if (!json_settings["app"]["users"].contains(username)) {
-    return "";
-  }
-  if (json_settings["app"]["users"][username] != password) {
-    return "";
-  }
-  return username;
-}
-
-struct httpAuthMiddleware : ILocalMiddleware {
-  struct context {};
-
-  void before_handle(crow::request &req, crow::response &res,
-                     __attribute__((unused)) context &ctx) {
-    string username = http_authenticate(req);
-    if (username.size() == 0) {
-      ask_for_cred(res);
-      return;
+class CustomLogger : public crow::ILogHandler {
+public:
+  CustomLogger() {}
+  void log(std::string msg, LogLevel lvl) {
+    if (lvl == LogLevel::Critical) {
+      spdlog::critical(msg);
+    } else if (lvl == LogLevel::Error) {
+      spdlog::error(msg);
+    } else if (lvl == LogLevel::Warning) {
+      spdlog::warn(msg);
+    } else if (lvl == LogLevel::Debug) {
+      spdlog::debug(msg);
+    } else {
+      spdlog::info(msg);
     }
   }
-
-  void after_handle(__attribute__((unused)) crow::request &req,
-                    __attribute__((unused)) crow::response &res,
-                    __attribute__((unused)) context &ctx) {}
 };
 
 void load_settings(string settings_path) {
-  cout << "settings_path: " << settings_path << endl;
 
   ifstream is(settings_path);
   json_settings = njson::parse(is,
@@ -103,11 +90,12 @@ void load_image_from_http(uint32_t device_id, response &res) {
                             {"data", "curl_easy_perform() error: " +
                                          string(curl_easy_strerror(curl_res))}})
                   .dump());
-      return;
+      goto curl_cleanup;
     }
-    curl_easy_cleanup(curl);
     res.write(response_string);
     res.end();
+  curl_cleanup:
+    curl_easy_cleanup(curl);
     curl = NULL;
   } else {
     res.code = 400;
@@ -182,87 +170,108 @@ void load_image_from_shm(uint32_t device_id, response &res) {
   }
 }
 
-int main(int argc, char *argv[]) {
-  string settings_path =
-      string(getenv("HOME")) + "/.config/ak-studio/cctv-dashboard.jsonc";
-  if (argc > 2) {
-    cerr << "Usage: ./cd.out [config-file.jsonc]" << endl;
-    return EXIT_FAILURE;
-  } else if (argc == 2) {
-    settings_path = string(argv[1]);
+string get_http_auth_username(const request &req) {
+  string myauth = req.get_header_value("Authorization");
+  if (myauth.size() < 6) {
+    return "<NA>";
   }
-  load_settings(settings_path);
+  string mycreds = myauth.substr(6);
+  string d_mycreds = crow::utility::base64decode(mycreds, mycreds.size());
+  size_t found = d_mycreds.find(':');
+  string username = d_mycreds.substr(0, found);
+  string password = d_mycreds.substr(found + 1);
+  return username;
+}
 
+int main(int argc, char *argv[]) {
+  string config_path;
+  cxxopts::Options options(argv[0], PROJECT_NAME);
+  // clang-format off
+  options.add_options()
+    ("h,help", "print help message")
+    ("c,config-path", "JSON configuration file path", cxxopts::value<string>()->default_value(config_path));
+  // clang-format on
+  auto result = options.parse(argc, argv);
+  if (result.count("help") || !result.count("config-path")) {
+    std::cout << options.help() << "\n";
+    return 0;
+  }
+  config_path = result["config-path"].as<std::string>();
+
+  load_settings(config_path);
+  spdlog::set_pattern("%Y-%m-%d %T.%e | %7l | %5t | %v");
+  spdlog::info(PROJECT_NAME " started (git commit: {})", GIT_COMMIT_HASH);
   if (ipc_mode == "http")
     curl_global_init(CURL_GLOBAL_DEFAULT);
 
-  App<httpAuthMiddleware> app;
-  CROW_ROUTE(app, "/").CROW_MIDDLEWARES(app,
-                                        httpAuthMiddleware)([](response &res) {
-    res.set_static_file_info("./static/html/index.html");
+  CustomLogger logger;
+  crow::logger::setHandler(&logger);
+  crow::SimpleApp app;
+  CROW_ROUTE(app, "/")
+  ([](response &res) {
+    auto get_path_relative_to_cwd =
+        [](const std::string &absolute_path) -> string {
+      fs::path abs_path = fs::absolute(absolute_path);
+      fs::path current_path = fs::current_path();
+      return fs::relative(abs_path, current_path).string();
+    };
+    // set_static_file_info asks for a path relative to the current working
+    // directory...
+    res.set_static_file_info_unsafe(
+        get_path_relative_to_cwd(PROJECT_SOURCE_DIR "/static/html/index.html"));
     res.end();
   });
 
   CROW_ROUTE(app, "/get_logged_in_user_json/")
-      .CROW_MIDDLEWARES(app, httpAuthMiddleware)([](const request &req) {
-        return json::wvalue(
-            {{"status", "success"}, {"data", http_authenticate(req)}});
-      });
+  ([](const request &req) {
+    return json::wvalue(
+        {{"status", "success"}, {"data", get_http_auth_username(req)}});
+  });
 
   CROW_ROUTE(app, "/get_device_count_json/")
-      .CROW_MIDDLEWARES(app, httpAuthMiddleware)([]() {
-        return json::wvalue(
-            {{"status", "success"},
-             {"data", json_settings["app"]["video_sources"].size()}});
-      });
+  ([]() {
+    return json::wvalue(
+        {{"status", "success"},
+         {"data", json_settings["app"]["video_sources"].size()}});
+  });
 
   CROW_ROUTE(app, "/cctv/")
-      .CROW_MIDDLEWARES(
-          app, httpAuthMiddleware)([](const request &req, response &res) {
-        if (req.url_params.get("device_id") == nullptr) {
-          res.code = 400;
-          res.end(json::wvalue({{"status", "error"},
-                                {"data", "device_id not specified"}})
-                      .dump());
-          return;
-        }
-        uint32_t device_id = atoi(req.url_params.get("device_id"));
-        if (device_id >= json_settings["app"]["video_sources"].size()) {
-          res.code = 400;
-          res.end(json::wvalue({{"status", "error"},
-                                {"data", "device_id " + to_string(device_id) +
-                                             " is invalid"}})
-                      .dump());
-          return;
-        }
-        if (ipc_mode == "shared_memory") {
-          load_image_from_shm(device_id, res);
-        } else if (ipc_mode == "http") {
-          load_image_from_http(device_id, res);
-        } else {
-          res.code = 400;
-          res.end(json::wvalue(
-                      {{"status", "error"}, {"data", "Unsupported ipc_mode"}})
-                      .dump());
-          return;
-        }
-      });
+  ([](const request &req, response &res) {
+    if (req.url_params.get("device_id") == nullptr) {
+      res.code = 400;
+      res.end(json::wvalue(
+                  {{"status", "error"}, {"data", "device_id not specified"}})
+                  .dump());
+      return;
+    }
+    uint32_t device_id = atoi(req.url_params.get("device_id"));
+    if (device_id >= json_settings["app"]["video_sources"].size()) {
+      res.code = 400;
+      res.end(json::wvalue({{"status", "error"},
+                            {"data", "device_id " + to_string(device_id) +
+                                         " is invalid"}})
+                  .dump());
+      return;
+    }
+    if (ipc_mode == "shared_memory") {
+      load_image_from_shm(device_id, res);
+    } else if (ipc_mode == "http") {
+      load_image_from_http(device_id, res);
+    } else {
+      res.code = 400;
+      res.end(
+          json::wvalue({{"status", "error"}, {"data", "Unsupported ipc_mode"}})
+              .dump());
+      return;
+    }
+  });
 
-  if (json_settings.value("/app/ssl/enabled"_json_pointer, false)) {
-    app.bindaddr(
-           json_settings.value("/app/interface"_json_pointer, "127.0.0.1"))
-        .port(json_settings["app"]["port"].get<int>())
-        .multithreaded()
-        .ssl_file(json_settings["app"]["ssl"]["crt_path"],
-                  json_settings["app"]["ssl"]["key_path"])
-        .run();
-  } else {
-    app.bindaddr(
-           json_settings.value("/app/interface"_json_pointer, "127.0.0.1"))
-        .port(json_settings["app"]["port"].get<int>())
-        .multithreaded()
-        .run();
-  }
+  app.bindaddr(json_settings.value("/app/interface"_json_pointer, "127.0.0.1"))
+      .port(json_settings.value("/app/port"_json_pointer, 80))
+      .multithreaded()
+      .run();
+
   if (ipc_mode == "http")
     curl_global_cleanup();
+  spdlog::info(PROJECT_NAME " exited");
 }
