@@ -110,47 +110,52 @@ void load_image_from_shm(uint32_t device_id, response &res) {
       json_settings["app"]["video_sources"][device_id]["semaphore_name"];
   string shm_name =
       json_settings["app"]["video_sources"][device_id]["shared_mem_name"];
-
+  SnapshotMsg msg;
+  size_t payload_size = 0;
+  void *shmptr;
+  sem_t *semptr;
   int fd = shm_open(shm_name.c_str(), O_RDONLY, PERMS);
   if (fd < 0) {
-    cerr << "shm_open(): " << strerror(errno) << endl;
+    spdlog::error("shm_open({}) error: {}({})", shm_name, errno,
+                  strerror(errno));
     res.code = 500;
     res.end(json::wvalue({{"status", "error"},
                           {"data", "Failed to read image from device"}})
                 .dump());
-    return;
+    goto err_shm_open;
   }
-  void *shmptr = mmap(NULL, SHM_SIZE, PROT_READ, MAP_SHARED, fd, 0);
+  shmptr = mmap(NULL, SHM_SIZE, PROT_READ, MAP_SHARED, fd, 0);
   if (shmptr == MAP_FAILED) {
-    cerr << "mmap(): " << strerror(errno) << endl;
+    spdlog::error("mmap({}) error: {}({})", shm_name, errno, strerror(errno));
     res.body = json::wvalue({{"status", "error"},
                              {"data", "Failed to read image from device"}})
                    .dump();
     res.code = 500;
     res.end();
-    return;
+    goto err_mmap;
   }
-  sem_t *semptr = sem_open(sem_name.c_str(), O_RDWR);
+  semptr = sem_open(sem_name.c_str(), O_RDWR);
   if (semptr == SEM_FAILED) {
-    cerr << "sem_open(): " << strerror(errno) << endl;
+    spdlog::error("sem_open({}) error: {}({})", sem_name, errno,
+                  strerror(errno));
     res.body = json::wvalue({{"status", "error"},
                              {"data", "Failed to read image from device"}})
                    .dump();
     res.code = 500;
     res.end();
-    return;
+    goto err_sem_open;
   }
   if (sem_wait(semptr) < 0) {
-    cerr << "sem_wait(): " << strerror(errno) << endl;
+    spdlog::error("sem_wait() error: {}({})", errno, strerror(errno));
+
     res.code = 500;
     res.end(json::wvalue({{"status", "error"},
                           {"data", "Failed to lock image for reading"}})
                 .dump());
-    return;
+    goto err_sem_wait;
   }
-  size_t payload_size;
   memcpy(&payload_size, shmptr, sizeof(size_t));
-  SnapshotMsg msg;
+
   msg.ParseFromString(
       string((char *)((uint8_t *)shmptr + sizeof(size_t)), payload_size));
   res.set_header("Content-Type", "image/jpg");
@@ -158,16 +163,21 @@ void load_image_from_shm(uint32_t device_id, response &res) {
   if (sem_post(semptr) != 0) {
     perror("sem_post()");
   }
-  if (munmap(shmptr, SHM_SIZE) != 0) {
-    perror("munmap()");
-  }
+
+err_sem_wait:
   /* On the reader side, we need to close() ONLY, no shm_unlink() */
-  if (close(fd) != 0) {
-    perror("close()");
-  }
   if (sem_close(semptr) != 0) {
     perror("sem_close()");
   }
+err_sem_open:
+  if (munmap(shmptr, SHM_SIZE) != 0) {
+    perror("munmap()");
+  }
+err_mmap:
+  if (close(fd) != 0) {
+    perror("close()");
+  }
+err_shm_open : {}
 }
 
 string get_http_auth_username(const request &req) {
